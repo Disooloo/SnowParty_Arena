@@ -1,14 +1,18 @@
 import secrets
 import string
 import uuid
+import os
+import random
+from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .models import Session, Player, Progress, Selfie
+from .models import Session, Player, Progress, Selfie, CrashGame, CrashBet
 from .serializers import SessionSerializer, PlayerSerializer, ProgressSerializer
 
 
@@ -20,6 +24,36 @@ def generate_session_code():
 def generate_player_token():
     """Генерация токена игрока"""
     return secrets.token_urlsafe(32)
+
+
+def get_player_role_and_buff(name):
+    """Определение роли и бафа игрока по имени"""
+    name_lower = name.lower().strip()
+    
+    # Роли и их бафы
+    roles_config = {
+        'администратор': {'role': 'Администратор', 'buff': 1000},
+        'admin': {'role': 'Администратор', 'buff': 1000},
+        'хост': {'role': 'Хост', 'buff': 500},
+        'host': {'role': 'Хост', 'buff': 500},
+        'ведущий': {'role': 'Ведущий', 'buff': 500},
+        'модератор': {'role': 'Модератор', 'buff': 300},
+        'moderator': {'role': 'Модератор', 'buff': 300},
+        'vip': {'role': 'VIP', 'buff': 200},
+        'вип': {'role': 'VIP', 'buff': 200},
+    }
+    
+    # Проверяем точное совпадение
+    if name_lower in roles_config:
+        return roles_config[name_lower]['role'], roles_config[name_lower]['buff']
+    
+    # Проверяем частичное совпадение (если имя содержит роль)
+    for key, value in roles_config.items():
+        if key in name_lower:
+            return value['role'], value['buff']
+    
+    # По умолчанию - обычный игрок
+    return None, 0
 
 
 @api_view(['POST'])
@@ -142,12 +176,17 @@ def join_session(request, code):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             # Игрок не найден, создаём нового
+            # Определяем роль и баф по имени
+            role, role_buff = get_player_role_and_buff(name)
+            
             player = Player.objects.create(
                 session=session,
                 device_uuid=device_uuid,
                 name=name,
                 token=generate_player_token(),
                 status='ready',
+                role=role,
+                role_buff=role_buff,
             )
             created = True
     except Exception as e:
@@ -431,6 +470,469 @@ def upload_selfie(request):
     })
 
 
+@api_view(['GET'])
+def get_audio_tracks(request):
+    """Получение списка аудио треков из папки media/audio"""
+    try:
+        # BASE_DIR указывает на backend/, поэтому поднимаемся на уровень выше
+        project_root = settings.BASE_DIR.parent
+        audio_dir = os.path.join(project_root, 'media', 'audio')
+        
+        # Проверяем существование папки
+        if not os.path.exists(audio_dir):
+            return Response({
+                'tracks': [],
+                'message': f'Папка с музыкой не найдена: {audio_dir}',
+                'debug_path': audio_dir
+            })
+        
+        # Получаем список всех аудио файлов
+        audio_extensions = ['.mp3', '.ogg', '.wav', '.m4a', '.aac']
+        tracks = []
+        
+        for filename in os.listdir(audio_dir):
+            if any(filename.lower().endswith(ext) for ext in audio_extensions):
+                # Формируем URL для доступа к файлу
+                file_url = f"{settings.MEDIA_URL}audio/{filename}"
+                # Очищаем имя файла от расширения для отображения
+                name = os.path.splitext(filename)[0]
+                tracks.append({
+                    'filename': filename,
+                    'url': file_url,
+                    'name': name  # Полное имя без расширения
+                })
+        
+        # Сортируем по имени файла
+        tracks.sort(key=lambda x: x['filename'])
+        
+        return Response({
+            'tracks': tracks,
+            'count': len(tracks),
+            'audio_dir': audio_dir  # Для отладки
+        })
+    except Exception as e:
+        import traceback
+        return Response({
+            'tracks': [],
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def get_crash_history(request, code):
+    """Получение истории игр Краш для сессии"""
+    try:
+        session = Session.objects.get(code=code)
+    except Session.DoesNotExist:
+        return Response(
+            {'error': 'Сессия не найдена'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    try:
+        # Получаем последние 4 игры (только завершенные)
+        games = CrashGame.objects.filter(session=session, ended_at__isnull=False).order_by('-started_at')[:4]
+        
+        history = []
+        for game in games:
+            history.append({
+                'multiplier': game.multiplier,
+                'started_at': game.started_at.isoformat() if game.started_at else None
+            })
+        
+        return Response({
+            'history': history,
+            'count': len(history)
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {'error': f'Ошибка получения истории: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+def get_current_crash_game(request, code):
+    """Получение текущей активной игры Краш"""
+    try:
+        session = Session.objects.get(code=code)
+    except Session.DoesNotExist:
+        return Response(
+            {'error': 'Сессия не найдена'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    try:
+        # Ищем активную игру (без ended_at)
+        game = CrashGame.objects.filter(session=session, ended_at__isnull=True).latest('started_at')
+        return Response({
+            'game_id': str(game.id),
+            'multiplier': game.multiplier,
+            'started_at': game.started_at.isoformat() if game.started_at else None,
+            'is_active': True,
+            'duration_seconds': game.duration_seconds if hasattr(game, 'duration_seconds') else 20,
+            'server_seed_hash': game.server_seed_hash if hasattr(game, 'server_seed_hash') else None,
+            'nonce': game.nonce if hasattr(game, 'nonce') else None
+        })
+    except CrashGame.DoesNotExist:
+        return Response({
+            'game_id': None,
+            'multiplier': None,
+            'is_active': False
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {'error': f'Ошибка получения текущей игры: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+def create_crash_game(request, code):
+    """Создание новой игры Краш с Provably Fair"""
+    import hashlib
+    
+    try:
+        session = Session.objects.get(code=code)
+    except Session.DoesNotExist:
+        return Response(
+            {'error': 'Сессия не найдена'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Проверяем, есть ли уже активная игра
+    active_game = CrashGame.objects.filter(
+        session=session,
+        ended_at__isnull=True
+    ).first()
+    
+    if active_game:
+        return Response({
+            'game_id': str(active_game.id),
+            'multiplier': active_game.multiplier,
+            'is_active': True,
+            'duration_seconds': active_game.duration_seconds,
+            'server_seed_hash': active_game.server_seed_hash,
+            'nonce': active_game.nonce
+        })
+    
+    # Provably Fair: генерируем серверный seed и его хэш
+    server_seed = secrets.token_hex(32)  # 64 символа
+    server_seed_hash = hashlib.sha256(server_seed.encode()).hexdigest()
+    
+    # Получаем последний nonce для этой сессии
+    last_game = CrashGame.objects.filter(session=session).order_by('-nonce').first()
+    nonce = (last_game.nonce + 1) if last_game and last_game.nonce else 1
+    
+    # Генерируем краш-коэффициент через SHA-256 для честности
+    # Используем server_seed + nonce для генерации
+    hmac_input = f"{server_seed}:{nonce}".encode()
+    hmac_hash = hashlib.sha256(hmac_input).hexdigest()
+    
+    # Преобразуем хэш в число от 0 до 1
+    hash_int = int(hmac_hash[:8], 16)  # Берем первые 8 символов
+    hash_float = hash_int / (16 ** 8)  # Нормализуем до 0-1
+    
+    # Генерируем множитель с взвешенным распределением
+    # 60% низкие (1.01-2.5), 25% средние (2.5-5.0), 10% высокие (5.0-10.0), 4% очень высокие (10.0-20.0), 1% экстремальные (20.0-50.0)
+    if hash_float < 0.60:
+        multiplier = round(1.01 + hash_float * (1.49 / 0.6), 2)
+    elif hash_float < 0.85:
+        multiplier = round(2.5 + (hash_float - 0.6) * (2.5 / 0.25), 2)
+    elif hash_float < 0.95:
+        multiplier = round(5.0 + (hash_float - 0.85) * (5.0 / 0.1), 2)
+    elif hash_float < 0.99:
+        multiplier = round(10.0 + (hash_float - 0.95) * (10.0 / 0.04), 2)
+    else:
+        multiplier = round(20.0 + (hash_float - 0.99) * (30.0 / 0.01), 2)
+    
+    # Ограничиваем максимум 50.0
+    multiplier = min(multiplier, 50.0)
+    
+    # Генерируем случайную длительность игры (20-40 секунд)
+    duration_seconds = random.randint(20, 40)
+    
+    game = CrashGame.objects.create(
+        session=session,
+        multiplier=multiplier,
+        duration_seconds=duration_seconds,
+        betting_phase_start=timezone.now(),
+        betting_phase_end=timezone.now() + timedelta(seconds=10),
+        server_seed=server_seed,
+        server_seed_hash=server_seed_hash,
+        nonce=nonce
+    )
+    
+    return Response({
+        'game_id': str(game.id),
+        'multiplier': multiplier,  # Финальное число, до которого будет идти игра
+        'is_active': False,
+        'duration_seconds': duration_seconds,
+        'server_seed_hash': server_seed_hash,  # Показываем хэш игрокам для проверки
+        'nonce': nonce,
+        'started_at': game.started_at.isoformat()
+    })
+
+
+@api_view(['POST'])
+def cashout_crash_bet(request):
+    """Вывод ставки во время игры (cashout)"""
+    try:
+        data = request.data
+        token = data.get('token')
+        bet_id = data.get('bet_id')
+        current_multiplier = float(data.get('current_multiplier', 1.0))
+        
+        if not token or not bet_id:
+            return Response(
+                {'error': 'Токен и ID ставки обязательны'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        player = get_object_or_404(Player, token=token)
+        bet = get_object_or_404(CrashBet, id=bet_id, player=player)
+        
+        # Проверяем, что ставка еще активна
+        if bet.status != 'pending':
+            return Response(
+                {'error': 'Ставка уже обработана'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверяем, что игра еще не закончилась
+        if bet.crash_game.ended_at:
+            return Response(
+                {'error': 'Игра уже завершена'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Вычисляем выигрыш
+        win_amount = int(bet.bet_amount * current_multiplier)
+        bet.win_amount = win_amount
+        bet.status = 'cashed_out'
+        bet.cashout_multiplier = current_multiplier
+        bet.cashed_out_at = timezone.now()
+        bet.save()
+        
+        # Обновляем бонусные очки игрока (ставка возвращается + выигрыш)
+        bet.player.bonus_score += bet.bet_amount + win_amount
+        bet.player.save()
+        
+        return Response({
+            'bet_id': str(bet.id),
+            'cashout_multiplier': current_multiplier,
+            'win_amount': win_amount,
+            'total_payout': bet.bet_amount + win_amount,
+            'status': bet.status
+        })
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+@api_view(['POST'])
+def place_crash_bet(request):
+    """Размещение ставки в игре Краш"""
+    try:
+        token = request.data.get('token')
+        if not token:
+            return Response(
+                {'error': 'Токен обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        player = get_object_or_404(Player, token=token)
+        
+        game_id = request.data.get('game_id')
+        if not game_id:
+            return Response(
+                {'error': 'game_id обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            game = CrashGame.objects.get(id=game_id)
+        except CrashGame.DoesNotExist:
+            return Response(
+                {'error': 'Игра не найдена'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Проверяем, что игра еще активна
+        if game.ended_at:
+            return Response(
+                {'error': 'Игра уже завершена'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверяем, не делал ли игрок уже ставку
+        if CrashBet.objects.filter(crash_game=game, player=player).exists():
+            return Response(
+                {'error': 'Вы уже сделали ставку в этом раунде'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        multiplier = request.data.get('multiplier')
+        if not multiplier:
+            return Response(
+                {'error': 'Множитель обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            multiplier = float(multiplier)
+            if multiplier < 1.01 or multiplier > 50:
+                return Response(
+                    {'error': 'Множитель должен быть от 1.01 до 50'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Неверный формат множителя'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        bet_amount = request.data.get('bet_amount', 0)
+        try:
+            bet_amount = int(bet_amount)
+            if bet_amount < 0:
+                return Response(
+                    {'error': 'Ставка не может быть отрицательной'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (ValueError, TypeError):
+            bet_amount = 0
+        
+        # Создаем ставку
+        bet = CrashBet.objects.create(
+            crash_game=game,
+            player=player,
+            multiplier=multiplier,
+            bet_amount=bet_amount,
+            status='pending'
+        )
+        
+        return Response({
+            'bet_id': str(bet.id),
+            'multiplier': bet.multiplier,
+            'bet_amount': bet.bet_amount,
+            'status': bet.status
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+def finish_crash_game(request, game_id):
+    """Завершение игры Краш и подсчет выигрышей"""
+    try:
+        game = get_object_or_404(CrashGame, id=game_id)
+        
+        if game.ended_at:
+            return Response(
+                {'error': 'Игра уже завершена'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from django.utils import timezone
+        game.ended_at = timezone.now()
+        game.save()
+        
+        # Подсчитываем выигрыши
+        bets = CrashBet.objects.filter(crash_game=game, status='pending')
+        winners = []
+        all_bets_info = []  # Информация о всех ставках для истории
+        
+        for bet in bets:
+            bet_info = {
+                'player_name': bet.player.name,
+                'multiplier': bet.multiplier,
+                'bet_amount': bet.bet_amount,
+                'won': False
+            }
+            
+            if bet.multiplier <= game.multiplier:
+                # Игрок выиграл
+                # Возвращаем ставку + выигрыш (ставка * множитель ставки)
+                win_amount = int(bet.bet_amount * bet.multiplier)
+                total_payout = bet.bet_amount + win_amount  # Ставка + выигрыш
+                bet.win_amount = total_payout
+                bet.status = 'won'
+                bet.save()
+                
+                # Начисляем выигрыш игроку (ставка возвращается + выигрыш)
+                player = bet.player
+                player.bonus_score += total_payout
+                player.save()
+                
+                bet_info['won'] = True
+                bet_info['win_amount'] = total_payout
+                bet_info['bet_returned'] = bet.bet_amount
+                bet_info['profit'] = win_amount
+                
+                winners.append({
+                    'player_id': str(player.id),
+                    'player_name': player.name,
+                    'multiplier': bet.multiplier,
+                    'win_amount': total_payout,
+                    'bet_returned': bet.bet_amount,
+                    'profit': win_amount
+                })
+            else:
+                # Игрок проиграл
+                bet.status = 'lost'
+                bet.save()
+            
+            all_bets_info.append(bet_info)
+        
+        # Отправляем обновление через WebSocket
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'session_{game.session.code}',
+            {
+                'type': 'crash_game_finished',
+                'payload': {
+                    'game_id': str(game.id),
+                    'multiplier': game.multiplier,
+                    'winners': winners
+                }
+            }
+        )
+        
+        broadcast_leaderboard_update(game.session.code)
+        
+        return Response({
+            'game_id': str(game.id),
+            'multiplier': game.multiplier,
+            'winners': winners,
+            'winners_count': len(winners),
+            'server_seed': game.server_seed,  # Показываем seed после завершения для проверки
+            'server_seed_hash': game.server_seed_hash,
+            'nonce': game.nonce
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 # Вспомогательные функции для broadcast через WebSocket
 
 def broadcast_session_state(session_code):
@@ -468,6 +970,8 @@ def broadcast_players_list(session_code):
                 'current_level': p.current_level,
                 'total_score': p.total_score,
                 'bonus_score': p.bonus_score,
+                'role': p.role,
+                'role_buff': p.role_buff,
                 'final_score': p.final_score,
             }
             for p in players
@@ -503,6 +1007,8 @@ def broadcast_player_update(session_code, player):
                     'current_level': player.current_level,
                     'total_score': player.total_score,
                     'bonus_score': player.bonus_score,
+                    'role': player.role,
+                    'role_buff': player.role_buff,
                     'final_score': player.final_score,
                 }
             }
@@ -517,7 +1023,7 @@ def broadcast_leaderboard_update(session_code):
         # Сортируем по total_score + bonus_score (final_score - это property, не поле БД)
         # Используем Python для сортировки по final_score, так как это вычисляемое свойство
         players_list = list(session.players.all())
-        players_list.sort(key=lambda p: (p.total_score + p.bonus_score, p.total_score, -p.created_at.timestamp()), reverse=True)
+        players_list.sort(key=lambda p: (p.total_score + p.bonus_score + p.role_buff, p.total_score, -p.created_at.timestamp()), reverse=True)
         players = players_list
         leaderboard = [
             {
@@ -526,6 +1032,8 @@ def broadcast_leaderboard_update(session_code):
                 'name': p.name,
                 'total_score': p.total_score,
                 'bonus_score': p.bonus_score,
+                'role': p.role,
+                'role_buff': p.role_buff,
                 'final_score': p.final_score,  # Используем property для отправки клиенту
                 'current_level': p.current_level,
                 'status': p.status,

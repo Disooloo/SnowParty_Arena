@@ -54,6 +54,8 @@ class Player(models.Model):
     current_level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='none')
     total_score = models.IntegerField(default=0)
     bonus_score = models.IntegerField(default=0)  # Бонусы из мини-игр
+    role = models.CharField(max_length=50, blank=True, null=True)  # Роль игрока (Администратор, и т.д.)
+    role_buff = models.IntegerField(default=0)  # Бонус от роли (баллы)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -65,7 +67,7 @@ class Player(models.Model):
     
     @property
     def final_score(self):
-        return self.total_score + self.bonus_score
+        return self.total_score + self.bonus_score + self.role_buff
 
 
 class Progress(models.Model):
@@ -139,4 +141,56 @@ class LeaderboardSnapshot(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+
+
+class CrashGame(models.Model):
+    """Игра Краш - история раундов"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='crash_games')
+    multiplier = models.FloatField()  # Множитель на котором упал (например, 2.5)
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.IntegerField(default=20)  # Длительность игры в секундах
+    betting_phase_start = models.DateTimeField(null=True, blank=True)  # Время начала фазы ставок
+    betting_phase_end = models.DateTimeField(null=True, blank=True)  # Время окончания фазы ставок
+    
+    # Provably Fair (честная игра)
+    seed = models.CharField(max_length=64, null=True, blank=True)  # Случайный seed для генерации
+    server_seed = models.CharField(max_length=64, null=True, blank=True)  # Серверный seed (скрытый)
+    server_seed_hash = models.CharField(max_length=64, null=True, blank=True)  # Хэш серверного seed (показывается игрокам)
+    nonce = models.IntegerField(default=0)  # Счетчик для уникальности
+    
+    class Meta:
+        ordering = ['-started_at']
+    
+    def __str__(self):
+        return f"Crash {self.session.code} - {self.multiplier}x"
+
+
+class CrashBet(models.Model):
+    """Ставка игрока в игре Краш"""
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает'),
+        ('cashed_out', 'Выведено'),
+        ('won', 'Выиграл'),
+        ('lost', 'Проиграл'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    crash_game = models.ForeignKey(CrashGame, on_delete=models.CASCADE, related_name='bets')
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='crash_bets')
+    multiplier = models.FloatField(null=True, blank=True)  # Авто-вывод на множитель (опционально)
+    bet_amount = models.IntegerField(default=0)  # Сколько поставил (в баллах)
+    win_amount = models.IntegerField(default=0)  # Сколько выиграл
+    cashout_multiplier = models.FloatField(null=True, blank=True)  # На каком множителе вывел
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    cashed_out_at = models.DateTimeField(null=True, blank=True)  # Когда вывел
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = [['crash_game', 'player']]  # Один игрок - одна ставка на раунд
+    
+    def __str__(self):
+        return f"{self.player.name} - {self.status}"
 

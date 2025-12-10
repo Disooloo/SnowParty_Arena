@@ -141,3 +141,79 @@ export async function getSessionSelfies(code) {
   return response.json()
 }
 
+export async function getAudioTracks() {
+  const response = await fetch(`${API_BASE}/audio/tracks`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to get audio tracks: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+// Crash Game API
+export async function getCrashHistory(code) {
+  const response = await fetch(`${API_BASE}/crash/${code}/history`)
+  if (!response.ok) {
+    throw new Error(`Failed to get crash history: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+export async function getCurrentCrashGame(code) {
+  const response = await fetch(`${API_BASE}/crash/${code}/current`)
+  if (!response.ok) {
+    throw new Error(`Failed to get current crash game: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+export async function createCrashGame(code) {
+  const response = await fetch(`${API_BASE}/crash/${code}/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to create crash game: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+export async function placeCrashBet(token, gameId, multiplier, betAmount = 0) {
+  const response = await fetch(`${API_BASE}/crash/bet`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      token,
+      game_id: gameId,
+      multiplier,
+      bet_amount: betAmount,
+    }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }))
+    throw new Error(error.error || `Failed to place bet: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+export async function finishCrashGame(gameId) {
+  const response = await fetch(`${API_BASE}/crash/${gameId}/finish`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to finish crash game: ${response.statusText}`)
+  }
+  return response.json()
+}
+

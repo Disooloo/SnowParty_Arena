@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { SessionWebSocket } from '../utils/websocket'
-import { getSessionState, createSession, startSession, getSessionSelfies } from '../utils/api'
+import { getSessionState, createSession, startSession, getSessionSelfies, getAudioTracks } from '../utils/api'
 import QRCode from 'qrcode.react'
 import './TVScreen.css'
 
@@ -72,6 +72,10 @@ function TVScreen() {
   const [currentSelfieIndex, setCurrentSelfieIndex] = useState(0)
   const [previousSessionCode, setPreviousSessionCode] = useState(null)
   const [gameTime, setGameTime] = useState(0) // Время игры в секундах
+  const [audioTracks, setAudioTracks] = useState([]) // Список треков
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0) // Индекс текущего трека
+  const [isPlaying, setIsPlaying] = useState(false) // Состояние воспроизведения
+  const [currentTrackName, setCurrentTrackName] = useState('') // Название текущего трека
   
   const wsRef = useRef(null)
   const audioRef = useRef(null)
@@ -81,6 +85,7 @@ function TVScreen() {
 
   useEffect(() => {
     initializeSession()
+    loadAudioTracks()
     return () => {
       if (wsRef.current) {
         wsRef.current.disconnect()
@@ -96,6 +101,183 @@ function TVScreen() {
       }
     }
   }, [sessionCodeParam]) // Переподключаемся при изменении кода сессии
+
+  // Загрузка списка треков
+  const loadAudioTracks = async () => {
+    try {
+      const data = await getAudioTracks()
+      console.log('🎵 Данные треков:', data)
+      if (data.tracks && data.tracks.length > 0) {
+        setAudioTracks(data.tracks)
+        setCurrentTrackIndex(0)
+        setCurrentTrackName(data.tracks[0].name)
+        // Устанавливаем первый трек
+        if (audioRef.current) {
+          const protocol = window.location.protocol || 'http:'
+          const host = window.location.hostname || 'localhost'
+          const port = window.location.port || '8000'
+          const fullUrl = `${protocol}//${host}:${port}${data.tracks[0].url}`
+          console.log('🎵 Загружаем трек:', fullUrl)
+          audioRef.current.src = fullUrl
+          audioRef.current.load() // Загружаем трек
+          // НЕ запускаем автоматически - пользователь сам нажмет кнопку
+          // Автоматическое воспроизведение может быть заблокировано браузером
+        }
+      } else {
+        console.warn('⚠️ Треки не найдены:', data.message || data.error)
+      }
+    } catch (err) {
+      console.error('❌ Ошибка загрузки треков:', err)
+    }
+  }
+
+  // Функция переключения на следующий трек
+  const nextTrack = () => {
+    if (audioTracks.length === 0) return
+    
+    const nextIndex = (currentTrackIndex + 1) % audioTracks.length
+    setCurrentTrackIndex(nextIndex)
+    setCurrentTrackName(audioTracks[nextIndex].name)
+    
+    if (audioRef.current) {
+      const protocol = window.location.protocol || 'http:'
+      const host = window.location.hostname || 'localhost'
+      const port = window.location.port || '8000'
+      const fullUrl = `${protocol}//${host}:${port}${audioTracks[nextIndex].url}`
+      console.log('🎵 Переключаем на трек:', fullUrl)
+      audioRef.current.src = fullUrl
+      audioRef.current.load() // Загружаем новый трек
+      
+      // Если был включен, продолжаем воспроизведение
+      if (isPlaying) {
+        audioRef.current.play().then(() => {
+          console.log('✅ Воспроизведение продолжено')
+        }).catch(err => {
+          console.error('❌ Ошибка воспроизведения:', err)
+          setIsPlaying(false)
+        })
+      }
+    }
+  }
+
+  // Функция паузы/воспроизведения
+  const togglePlayPause = () => {
+    const audio = audioRef.current
+    if (!audio) {
+      console.error('❌ Аудио элемент не найден')
+      return
+    }
+    
+    // Проверяем, есть ли src
+    if (!audio.src) {
+      console.error('❌ Аудио src не установлен')
+      // Пытаемся загрузить текущий трек
+      if (audioTracks.length > 0 && currentTrackIndex >= 0) {
+        const protocol = window.location.protocol || 'http:'
+        const host = window.location.hostname || 'localhost'
+        const port = window.location.port || '8000'
+        const fullUrl = `${protocol}//${host}:${port}${audioTracks[currentTrackIndex].url}`
+        console.log('🎵 Устанавливаем src:', fullUrl)
+        audio.src = fullUrl
+        audio.load() // Загружаем трек
+      } else {
+        console.error('❌ Нет треков для воспроизведения')
+        return
+      }
+    }
+    
+    if (audio.paused) {
+      // Воспроизводим
+      console.log('▶️ Запускаем воспроизведение')
+      audio.play().then(() => {
+        setIsPlaying(true)
+        console.log('✅ Воспроизведение запущено')
+      }).catch(err => {
+        console.error('❌ Ошибка воспроизведения:', err)
+        setIsPlaying(false)
+      })
+    } else {
+      // Ставим на паузу
+      console.log('⏸️ Ставим на паузу')
+      audio.pause()
+      setIsPlaying(false)
+    }
+  }
+
+  // Обработка окончания трека
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || audioTracks.length === 0) return
+
+    const handleEnded = () => {
+      console.log('🎵 Трек закончился, переключаем на следующий')
+      // Переключаем на следующий трек
+      const nextIndex = (currentTrackIndex + 1) % audioTracks.length
+      setCurrentTrackIndex(nextIndex)
+      setCurrentTrackName(audioTracks[nextIndex].name)
+      
+      const protocol = window.location.protocol || 'http:'
+      const host = window.location.hostname || 'localhost'
+      const port = window.location.port || '8000'
+      const fullUrl = `${protocol}//${host}:${port}${audioTracks[nextIndex].url}`
+      console.log('🎵 Загружаем следующий трек:', fullUrl)
+      audio.src = fullUrl
+      audio.load()
+      
+      // Автоматически продолжаем воспроизведение
+      audio.play().then(() => {
+        setIsPlaying(true)
+        console.log('✅ Следующий трек запущен')
+      }).catch(err => {
+        console.error('❌ Ошибка воспроизведения следующего трека:', err)
+        setIsPlaying(false)
+      })
+    }
+
+    audio.addEventListener('ended', handleEnded)
+    return () => {
+      audio.removeEventListener('ended', handleEnded)
+    }
+  }, [audioTracks, currentTrackIndex])
+
+  // Обработчики событий аудио
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const handlePlay = () => {
+      console.log('🎵 Событие play')
+      setIsPlaying(true)
+    }
+    const handlePause = () => {
+      console.log('⏸️ Событие pause')
+      setIsPlaying(false)
+    }
+    const handleError = (e) => {
+      console.error('❌ Ошибка аудио:', e)
+      setIsPlaying(false)
+    }
+    const handleLoadStart = () => {
+      console.log('📥 Начало загрузки трека')
+    }
+    const handleCanPlay = () => {
+      console.log('✅ Трек готов к воспроизведению')
+    }
+
+    audio.addEventListener('play', handlePlay)
+    audio.addEventListener('pause', handlePause)
+    audio.addEventListener('error', handleError)
+    audio.addEventListener('loadstart', handleLoadStart)
+    audio.addEventListener('canplay', handleCanPlay)
+
+    return () => {
+      audio.removeEventListener('play', handlePlay)
+      audio.removeEventListener('pause', handlePause)
+      audio.removeEventListener('error', handleError)
+      audio.removeEventListener('loadstart', handleLoadStart)
+      audio.removeEventListener('canplay', handleCanPlay)
+    }
+  }, [])
 
   // Автоматическая карусель селфи
   // Очистка селфи при смене сессии
@@ -212,13 +394,8 @@ function TVScreen() {
       // Подключаемся к WebSocket
       connectWebSocket(code)
       
-      // Запускаем музыку (если файл существует)
-      if (audioRef.current) {
-        audioRef.current.play().catch(() => {
-          // Музыка не найдена - это нормально
-          console.log('Музыка не найдена, продолжаем без неё')
-        })
-      }
+      // Музыка будет загружена через loadAudioTracks
+      // Автоматическое воспроизведение не запускаем, так как может быть заблокировано браузером
     } catch (err) {
       console.error('Error initializing session:', err)
       setError(err.message || 'Не удалось подключиться к серверу')
@@ -509,10 +686,7 @@ function TVScreen() {
         </div>
       )}
       
-      <audio ref={audioRef} loop style={{ display: 'none' }}>
-        <source src="/music/new-year.mp3" type="audio/mpeg" />
-        {/* Добавьте новогоднюю музыку в public/music/new-year.mp3 для автоматического воспроизведения */}
-      </audio>
+      <audio ref={audioRef} style={{ display: 'none' }} />
       
       <div className="tv-header">
         <h1>🎄 Снежная арена </h1>
@@ -660,20 +834,93 @@ function TVScreen() {
               border: '2px solid rgba(68, 255, 68, 0.2)'
             }}>
               <h3 style={{marginBottom: '1rem', textAlign: 'center', fontSize: '1.2rem'}}>🎵 Новогодняя музыка</h3>
-              <audio 
-                ref={audioRef} 
-                controls 
-                style={{width: '100%'}}
-                onPlay={() => console.log('Music started')}
-                onPause={() => console.log('Music paused')}
-              >
-                <source src="/music/new-year.mp3" type="audio/mpeg" />
-                <source src="/music/new-year.mp3" type="audio/ogg" />
-                Ваш браузер не поддерживает аудио элемент.
-              </audio>
-              <p style={{marginTop: '1rem', fontSize: '0.9rem', color: '#aaa', textAlign: 'center'}}>
-                Включите новогоднюю музыку для атмосферы!
-              </p>
+              {audioTracks.length > 0 ? (
+                <>
+                  <audio 
+                    ref={audioRef} 
+                    style={{display: 'none'}}
+                  />
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      padding: '1rem',
+                      borderRadius: '0.5rem',
+                      width: '100%',
+                      textAlign: 'center',
+                      marginBottom: '0.5rem'
+                    }}>
+                      <p style={{
+                        fontSize: '1rem',
+                        color: '#fff',
+                        fontWeight: 'bold',
+                        margin: 0,
+                        wordBreak: 'break-word'
+                      }}>
+                        {currentTrackName || 'Загрузка...'}
+                      </p>
+                      {audioTracks.length > 0 && (
+                        <p style={{
+                          fontSize: '0.8rem',
+                          color: '#aaa',
+                          margin: '0.5rem 0 0 0'
+                        }}>
+                          Трек {currentTrackIndex + 1} из {audioTracks.length}
+                        </p>
+                      )}
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      gap: '1rem',
+                      alignItems: 'center'
+                    }}>
+                      <button
+                        onClick={togglePlayPause}
+                        style={{
+                          padding: '0.75rem 1.5rem',
+                          fontSize: '1rem',
+                          background: isPlaying ? 'rgba(255, 68, 68, 0.8)' : 'rgba(68, 255, 68, 0.8)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '0.5rem',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {isPlaying ? '⏸ Пауза' : '▶ Воспроизвести'}
+                      </button>
+                      <button
+                        onClick={nextTrack}
+                        style={{
+                          padding: '0.75rem 1.5rem',
+                          fontSize: '1rem',
+                          background: 'rgba(68, 68, 255, 0.8)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '0.5rem',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        ⏭ Следующий
+                      </button>
+                    </div>
+                    <p style={{fontSize: '0.8rem', color: '#888', textAlign: 'center', marginTop: '0.5rem'}}>
+                      Трек {currentTrackIndex + 1} из {audioTracks.length}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <p style={{fontSize: '0.9rem', color: '#aaa', textAlign: 'center'}}>
+                  Музыка не найдена
+                </p>
+              )}
             </div>
           </div>
           
@@ -786,17 +1033,98 @@ function TVScreen() {
                 marginTop: '1rem'
               }}>
                 <h4 style={{fontSize: '1.2rem', marginBottom: '1rem'}}>🎵 Новогодняя музыка</h4>
-                <audio 
-                  ref={audioRef} 
-                  controls 
-                  style={{width: '100%'}}
-                  onPlay={() => console.log('Music started')}
-                  onPause={() => console.log('Music paused')}
-                >
-                  <source src="/music/new-year.mp3" type="audio/mpeg" />
-                  <source src="/music/new-year.mp3" type="audio/ogg" />
-                  Ваш браузер не поддерживает аудио элемент.
-                </audio>
+                {audioTracks.length > 0 ? (
+                  <>
+                    <audio 
+                      ref={audioRef} 
+                      style={{display: 'none'}}
+                    />
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        padding: '1rem',
+                        borderRadius: '0.5rem',
+                        width: '100%',
+                        textAlign: 'center',
+                        marginBottom: '0.5rem'
+                      }}>
+                        <p style={{
+                          fontSize: '1rem',
+                          color: '#fff',
+                          fontWeight: 'bold',
+                          margin: 0,
+                          wordBreak: 'break-word'
+                        }}>
+                          {currentTrackName || 'Загрузка...'}
+                        </p>
+                        {audioTracks.length > 0 && (
+                          <p style={{
+                            fontSize: '0.8rem',
+                            color: '#aaa',
+                            margin: '0.5rem 0 0 0'
+                          }}>
+                            Трек {currentTrackIndex + 1} из {audioTracks.length}
+                          </p>
+                        )}
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        gap: '1rem',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexWrap: 'wrap'
+                      }}>
+                        <button
+                          onClick={togglePlayPause}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            fontSize: '1rem',
+                            background: isPlaying ? 'rgba(255, 68, 68, 0.8)' : 'rgba(68, 255, 68, 0.8)',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '0.5rem',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            transition: 'all 0.2s',
+                            minWidth: '140px'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                          {isPlaying ? '⏸ Пауза' : '▶ Воспроизвести'}
+                        </button>
+                        <button
+                          onClick={nextTrack}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            fontSize: '1rem',
+                            background: 'rgba(68, 68, 255, 0.8)',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '0.5rem',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            transition: 'all 0.2s',
+                            minWidth: '140px'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                          ⏭ Следующий
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p style={{fontSize: '0.9rem', color: '#aaa', textAlign: 'center'}}>
+                    Музыка не найдена
+                  </p>
+                )}
               </div>
             </div>
             
