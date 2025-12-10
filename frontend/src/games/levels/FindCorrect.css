@@ -1,0 +1,96 @@
+.find-correct {
+  padding: 1rem;
+  text-align: center;
+  color: white;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.find-correct .level-header {
+  margin-bottom: 1rem;
+}
+
+.find-correct .game-stats {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.find-correct .stat {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.find-correct .images-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin: 1rem 0;
+  max-width: 100%;
+  padding: 0 0.5rem;
+  box-sizing: border-box;
+}
+
+.find-correct .image-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid transparent;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  font-size: 2.5rem;
+  box-sizing: border-box;
+}
+
+.find-correct .image-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.find-correct .image-button.selected {
+  border-color: #44ff44;
+  background: rgba(68, 255, 68, 0.2);
+}
+
+.find-correct .image-button.selected.correct {
+  border-color: #44ff44;
+  background: rgba(68, 255, 68, 0.3);
+}
+
+.find-correct .image-button.selected.wrong {
+  border-color: #ff4444;
+  background: rgba(255, 68, 68, 0.3);
+}
+
+.find-correct .start-button,
+.find-correct .finish-button {
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  background: #44ff44;
+  color: #000;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 2rem;
+}
+
+.find-correct .finish-button {
+  background: #ffaa00;
+}
+
+.find-correct .start-button:hover,
+.find-correct .finish-button:hover {
+  transform: scale(1.05);
+}
+

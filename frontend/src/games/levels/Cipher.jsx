@@ -1,0 +1,343 @@
+import { useState, useEffect } from 'react'
+import './Cipher.css'
+
+// Загадки с подсказками
+const CIPHERS = [
+  {
+    id: 1,
+    hints: [
+      'Это украшение на ёлке',
+      'Оно светится и мигает',
+      'Бывает разных цветов',
+      'Начинается с буквы Г'
+    ],
+    answer: 'ГИРЛЯНДА',
+    category: 'Новогоднее украшение'
+  },
+  {
+    id: 2,
+    hints: [
+      'Это зимний персонаж',
+      'Его делают из снега',
+      'У него есть морковка вместо носа',
+      'Начинается с буквы С'
+    ],
+    answer: 'СНЕГОВИК',
+    category: 'Зимний персонаж'
+  },
+  {
+    id: 3,
+    hints: [
+      'Это новогодний подарок',
+      'Он под ёлкой',
+      'Обычно в красивой упаковке',
+      'Начинается с буквы П'
+    ],
+    answer: 'ПОДАРОК',
+    category: 'Подарок'
+  },
+  {
+    id: 4,
+    hints: [
+      'Это новогодний фрукт',
+      'Он оранжевого цвета',
+      'Его едят на Новый год',
+      'Начинается с буквы М'
+    ],
+    answer: 'МАНДАРИН',
+    category: 'Фрукт'
+  },
+  {
+    id: 5,
+    hints: [
+      'Это новогодний салат',
+      'Он очень популярный',
+      'В нем есть колбаса и майонез',
+      'Начинается с буквы О'
+    ],
+    answer: 'ОЛИВЬЕ',
+    category: 'Блюдо'
+  },
+  {
+    id: 6,
+    hints: [
+      'Это новогодний персонаж',
+      'Он приносит подарки',
+      'У него есть борода',
+      'Начинается с буквы Д'
+    ],
+    answer: 'ДЕДМОРОЗ',
+    category: 'Персонаж'
+  },
+  {
+    id: 7,
+    hints: [
+      'Это новогодний фейерверк',
+      'Он взрывается в небе',
+      'Очень красивый',
+      'Начинается с буквы С'
+    ],
+    answer: 'САЛЮТ',
+    category: 'Фейерверк'
+  },
+  {
+    id: 8,
+    hints: [
+      'Это новогодняя игрушка',
+      'Она круглая',
+      'Обычно стеклянная',
+      'Начинается с буквы Ш'
+    ],
+    answer: 'ШАР',
+    category: 'Игрушка'
+  }
+]
+
+function shuffleArray(array) {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
+function Cipher({ onComplete }) {
+  const [cipher, setCipher] = useState(null)
+  const [currentHintIndex, setCurrentHintIndex] = useState(0)
+  const [userAnswer, setUserAnswer] = useState('')
+  const [gameStarted, setGameStarted] = useState(false)
+  const [score, setScore] = useState(0)
+  const [attempts, setAttempts] = useState(0)
+  const [showResult, setShowResult] = useState(false)
+  const [cipherIndex, setCipherIndex] = useState(0)
+  const [ciphers, setCiphers] = useState([])
+
+  useEffect(() => {
+    if (gameStarted) {
+      // Выбираем 3 случайные загадки
+      const shuffled = shuffleArray(CIPHERS)
+      setCiphers(shuffled.slice(0, 3))
+      loadCipher(0, shuffled.slice(0, 3))
+    }
+  }, [gameStarted])
+
+  const loadCipher = (index, cipherList) => {
+    if (index >= cipherList.length) return
+    setCipher(cipherList[index])
+    setCurrentHintIndex(0)
+    setUserAnswer('')
+    setAttempts(0)
+    setShowResult(false)
+  }
+
+  const startGame = () => {
+    setGameStarted(true)
+    setCipherIndex(0)
+    setScore(0)
+  }
+
+  const showNextHint = () => {
+    if (currentHintIndex < cipher.hints.length - 1) {
+      setCurrentHintIndex(currentHintIndex + 1)
+    }
+  }
+
+  const handleSubmit = () => {
+    if (!userAnswer.trim()) return
+    
+    const normalizedAnswer = userAnswer.trim().toUpperCase()
+    const normalizedCorrect = cipher.answer.toUpperCase()
+    
+    setAttempts(attempts + 1)
+    
+    if (normalizedAnswer === normalizedCorrect) {
+      // Правильно! Даем очки в зависимости от количества использованных подсказок
+      // Чем меньше подсказок - тем больше очков
+      const hintsUsed = currentHintIndex + 1
+      const points = 10 + (cipher.hints.length - hintsUsed) * 5 // Базовые 10 + бонус за скорость
+      setScore(score + points)
+      setShowResult(true)
+      
+      // Переходим к следующей загадке
+      setTimeout(() => {
+        if (cipherIndex < ciphers.length - 1) {
+          const nextIndex = cipherIndex + 1
+          setCipherIndex(nextIndex)
+          loadCipher(nextIndex, ciphers)
+        } else {
+          // Все загадки решены
+          finishGame()
+        }
+      }, 2000)
+    } else {
+      // Неправильно
+      setShowResult(true)
+      setTimeout(() => {
+        setShowResult(false)
+        setUserAnswer('')
+      }, 1500)
+    }
+  }
+
+  const finishGame = () => {
+    onComplete(score, 0, {
+      ciphers_solved: cipherIndex + 1,
+      total_ciphers: ciphers.length,
+      final_score: score
+    })
+  }
+
+  if (!gameStarted) {
+    return (
+      <div className="cipher">
+        <h2>🔴 Шифровка</h2>
+        <h3>Угадайте слово по подсказкам!</h3>
+        <p>Вам дадут несколько подсказок. Чем быстрее угадаете - тем больше очков!</p>
+        <p style={{color: '#ff4444', marginTop: '1rem'}}>💰 Базовые очки: <strong>10</strong></p>
+        <p style={{color: '#44ff44', marginTop: '0.5rem'}}>⭐ Бонус за скорость: <strong>+5 за каждую неиспользованную подсказку</strong></p>
+        <button onClick={startGame} className="start-button">
+          Начать
+        </button>
+      </div>
+    )
+  }
+
+  if (cipherIndex >= ciphers.length) {
+    return (
+      <div className="cipher">
+        <h2>🎉 Все загадки разгаданы!</h2>
+        <div style={{marginTop: '2rem'}}>
+          <p style={{fontSize: '1.5rem', color: '#44ff44'}}>
+            Ваш счет: <strong>{score} баллов</strong>
+          </p>
+          <p style={{fontSize: '1.2rem', marginTop: '1rem'}}>
+            Разгадано: {ciphers.length} из {ciphers.length}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="cipher" style={{padding: '1rem', maxWidth: '100%', overflow: 'hidden'}}>
+      <div className="level-header" style={{marginBottom: '1rem'}}>
+        <h2 style={{fontSize: '1.5rem', marginBottom: '0.5rem'}}>🔴 Шифровка</h2>
+        <div className="game-stats" style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center'}}>
+          <div className="stat" style={{fontSize: '0.9rem', padding: '0.4rem 0.8rem'}}>
+            Загадка: {cipherIndex + 1}/{ciphers.length}
+          </div>
+          <div className="stat" style={{fontSize: '0.9rem', padding: '0.4rem 0.8rem'}}>
+            Очки: {score}
+          </div>
+        </div>
+      </div>
+
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        padding: '1.5rem',
+        borderRadius: '1rem',
+        margin: '1rem 0'
+      }}>
+        <h3 style={{fontSize: '1.1rem', marginBottom: '1rem', color: '#ffaa00'}}>
+          Категория: {cipher.category}
+        </h3>
+        
+        <div style={{
+          background: 'rgba(0, 0, 0, 0.3)',
+          padding: '1rem',
+          borderRadius: '0.5rem',
+          marginBottom: '1rem',
+          minHeight: '100px'
+        }}>
+          <p style={{fontSize: '0.9rem', color: '#aaa', marginBottom: '0.5rem'}}>
+            Подсказка {currentHintIndex + 1} из {cipher.hints.length}:
+          </p>
+          <p style={{fontSize: '1.3rem', lineHeight: '1.6'}}>
+            {cipher.hints[currentHintIndex]}
+          </p>
+        </div>
+
+        {currentHintIndex < cipher.hints.length - 1 && (
+          <button
+            onClick={showNextHint}
+            style={{
+              padding: '0.75rem 1.5rem',
+              fontSize: '1rem',
+              background: '#ffaa00',
+              color: '#000',
+              border: 'none',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              marginBottom: '1rem'
+            }}
+          >
+            Показать следующую подсказку
+          </button>
+        )}
+      </div>
+
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        padding: '1.5rem',
+        borderRadius: '1rem',
+        margin: '1rem 0'
+      }}>
+        <input
+          type="text"
+          value={userAnswer}
+          onChange={(e) => setUserAnswer(e.target.value.toUpperCase())}
+          placeholder="Введите ответ..."
+          style={{
+            width: '100%',
+            padding: '1rem',
+            fontSize: '1.2rem',
+            background: 'rgba(0, 0, 0, 0.3)',
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '0.5rem',
+            color: 'white',
+            textAlign: 'center',
+            textTransform: 'uppercase'
+          }}
+          onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
+        />
+        
+        <button
+          onClick={handleSubmit}
+          disabled={!userAnswer.trim()}
+          style={{
+            width: '100%',
+            padding: '1rem',
+            fontSize: '1.2rem',
+            background: userAnswer.trim() ? '#ff4444' : 'rgba(255, 68, 68, 0.5)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '0.5rem',
+            cursor: userAnswer.trim() ? 'pointer' : 'not-allowed',
+            fontWeight: 'bold',
+            marginTop: '1rem'
+          }}
+        >
+          Проверить ответ
+        </button>
+
+        {showResult && (
+          <div style={{
+            marginTop: '1rem',
+            fontSize: '1.2rem',
+            color: userAnswer.trim().toUpperCase() === cipher.answer.toUpperCase() ? '#44ff44' : '#ff4444',
+            fontWeight: 'bold'
+          }}>
+            {userAnswer.trim().toUpperCase() === cipher.answer.toUpperCase() 
+              ? `✅ Правильно! Ответ: ${cipher.answer}` 
+              : '❌ Неправильно, попробуйте еще раз'}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default Cipher
+

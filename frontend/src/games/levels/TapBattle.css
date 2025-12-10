@@ -1,0 +1,86 @@
+.tap-battle {
+  padding: 1rem;
+  text-align: center;
+  color: white;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.tap-battle .level-header {
+  margin-bottom: 2rem;
+}
+
+.tap-battle .game-stats {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+
+.tap-battle .stat {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.tap-battle .snowman-container {
+  margin: 2rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+.tap-battle .snowman-button {
+  transition: transform 0.1s;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.tap-battle .snowman-button:active {
+  transform: scale(0.9);
+}
+
+.tap-battle .progress-bar {
+  width: 100%;
+  max-width: 400px;
+  margin: 2rem auto;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tap-battle .progress-bar > div {
+  height: 100%;
+  background: #44ff44;
+  transition: width 0.1s;
+}
+
+.tap-battle .start-button,
+.tap-battle .finish-button {
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  background: #44ff44;
+  color: #000;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 2rem;
+}
+
+.tap-battle .finish-button {
+  background: #ffaa00;
+}
+
+.tap-battle .start-button:hover,
+.tap-battle .finish-button:hover {
+  transform: scale(1.05);
+}
+

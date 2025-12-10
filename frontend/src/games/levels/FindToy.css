@@ -1,0 +1,56 @@
+.find-toy {
+  padding: 1rem;
+  text-align: center;
+  color: white;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.find-toy .level-header {
+  margin-bottom: 1rem;
+}
+
+.find-toy .game-stats {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.find-toy .stat {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.find-toy .start-button,
+.find-toy .finish-button {
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  background: #ffaa00;
+  color: #000;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 2rem;
+}
+
+.find-toy .start-button:hover,
+.find-toy .finish-button:hover {
+  transform: scale(1.05);
+}
+
+.find-toy .item-button.selected.correct {
+  border-color: #44ff44;
+  background: rgba(68, 255, 68, 0.3);
+}
+
+.find-toy .item-button.selected.wrong {
+  border-color: #ff4444;
+  background: rgba(255, 68, 68, 0.3);
+}
+

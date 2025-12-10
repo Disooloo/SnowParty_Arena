@@ -1,0 +1,125 @@
+.green-level {
+  padding: 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.level-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.level-header h2 {
+  font-size: 1.8rem;
+  margin: 0;
+}
+
+.game-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.stat {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.word-display {
+  margin: 1.5rem 0;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selected-word {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  min-height: 50px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  width: 100%;
+}
+
+.placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
+.selected-letter {
+  display: inline-block;
+  padding: 0.75rem 1rem;
+  background: #44ff44;
+  color: #000;
+  border-radius: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.selected-letter:hover {
+  transform: scale(1.1);
+}
+
+.letters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.letter-button {
+  padding: 1.2rem;
+  font-size: 1.5rem;
+  font-weight: bold;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.letter-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.letter-button:disabled,
+.letter-button.used {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.start-button,
+.finish-button {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.2rem;
+  background: #44ff44;
+  color: #000;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 1rem;
+  transition: transform 0.2s;
+}
+
+.start-button:hover,
+.finish-button:hover {
+  transform: scale(1.05);
+}
+
