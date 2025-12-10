@@ -3,15 +3,15 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { SessionWebSocket } from '../utils/websocket'
 import { getSessionState, joinSession, submitProgress } from '../utils/api'
 import { getDeviceUuid, getPlayerToken, setPlayerToken, setSessionCode, getSessionCode, clearPlayerData, saveGameState, getGameState, clearGameState } from '../utils/storage'
-import GreenLevel from '../games/levels/GreenLevel'
-import FindCorrect from '../games/levels/FindCorrect'
-import TapBattle from '../games/levels/TapBattle'
-import TrueOrFalse from '../games/levels/TrueOrFalse'
-import Charades from '../games/levels/Charades'
-import FindToy from '../games/levels/FindToy'
-import CatchGame from '../games/levels/CatchGame'
-import Cipher from '../games/levels/Cipher'
-import Simon from '../games/levels/Simon'
+import GreenLevel from '../games/green/GreenLevel'
+import FindCorrect from '../games/green/FindCorrect'
+import TapBattle from '../games/green/TapBattle'
+import TrueOrFalse from '../games/yellow/TrueOrFalse'
+import Charades from '../games/yellow/Charades'
+import FindToy from '../games/yellow/FindToy'
+import CatchGame from '../games/red/CatchGame'
+import Cipher from '../games/red/Cipher'
+import Simon from '../games/red/Simon'
 import BonusLevelIntro from '../games/bonus/BonusLevelIntro'
 import CatchGifts from '../games/bonus/CatchGifts'
 import Snowballs from '../games/bonus/Snowballs'
@@ -34,6 +34,8 @@ function PlayerScreen() {
   const [currentRedGame, setCurrentRedGame] = useState(0) // 0 = начало, 1 = реакция и ловля, 2 = шифровка, 3 = саймон
   const [redGame1Score, setRedGame1Score] = useState(null) // Результат первой игры красного уровня
   const [greenTotalScore, setGreenTotalScore] = useState(0) // Общий счет зеленого уровня
+  const [yellowTotalScore, setYellowTotalScore] = useState(0) // Общий счет желтого уровня
+  const [redTotalScore, setRedTotalScore] = useState(0) // Общий счет красного уровня
   const [bonusGameActive, setBonusGameActive] = useState(false) // Активна ли бонусная игра
   const [bonusGameType, setBonusGameType] = useState(null) // Тип бонусной игры
   const [bonusGameIntroShown, setBonusGameIntroShown] = useState(false) // Показан ли интро бонусной игры
@@ -306,12 +308,29 @@ function PlayerScreen() {
       case 'player.update':
         if (data.payload.player.id === player?.id) {
           setPlayer(data.payload.player)
-          // Если currentLevel null (после завершения уровня), переходим к следующему
-          if (currentLevel === null && data.payload.player.current_level !== 'none') {
-            // Игрок перешёл на следующий уровень - показываем экран начала уровня
-            // currentLevel остаётся null, чтобы показать экран правил
+          const newLevel = data.payload.player.current_level
+          
+          // Обновляем уровень игрока из сервера
+          if (newLevel && newLevel !== 'none') {
+            setCurrentLevel(newLevel)
+            // Сохраняем актуальный уровень
+            if (session && player) {
+              saveGameState({
+                sessionCode: session.code,
+                playerToken: player.token,
+                playerName: player.name,
+                playerId: player.id,
+                isJoined: true,
+                gameStatus: gameStatus,
+                currentLevel: newLevel,
+                currentGreenGame: currentGreenGame,
+                currentYellowGame: currentYellowGame,
+                currentRedGame: currentRedGame,
+                playedBonusGames: Array.from(playedBonusGames)
+              })
+            }
           } else if (!currentLevel || currentLevel === 'none') {
-            setCurrentLevel(data.payload.player.current_level)
+            setCurrentLevel(newLevel || 'green')
           }
         }
         break
@@ -481,21 +500,52 @@ function PlayerScreen() {
       setShowFireworks(true)
       setTimeout(() => setShowFireworks(false), 3000)
       
+      // НЕ меняем currentLevel - остаемся на текущем уровне
+      // Игра продолжается с того места, где была прервана бонусной игрой
+      
       // Сохраняем состояние после завершения бонусной игры
-      if (session) {
-        saveGameState({
-          sessionCode: session.code,
-          playerToken: player.token,
-          playerName: player.name,
-          playerId: player.id,
-          isJoined: true,
-          gameStatus: gameStatus,
-          currentLevel: currentLevel,
-          currentGreenGame: currentGreenGame,
-          currentYellowGame: currentYellowGame,
-          currentRedGame: currentRedGame,
-          playedBonusGames: Array.from(playedBonusGames) // Сохраняем сыгранные бонусные игры
-        })
+      if (session && player) {
+        // Получаем актуальный уровень игрока с сервера
+        try {
+          const sessionData = await getSessionState(session.code)
+          const updatedPlayer = sessionData.players?.find(p => p.id === player.id)
+          const actualLevel = updatedPlayer?.current_level || currentLevel || 'green'
+          
+          saveGameState({
+            sessionCode: session.code,
+            playerToken: player.token,
+            playerName: player.name,
+            playerId: player.id,
+            isJoined: true,
+            gameStatus: gameStatus,
+            currentLevel: actualLevel,
+            currentGreenGame: currentGreenGame,
+            currentYellowGame: currentYellowGame,
+            currentRedGame: currentRedGame,
+            playedBonusGames: Array.from(playedBonusGames) // Сохраняем сыгранные бонусные игры
+          })
+          
+          // Обновляем локальное состояние уровня
+          if (actualLevel !== currentLevel) {
+            setCurrentLevel(actualLevel)
+          }
+        } catch (err) {
+          console.error('❌ Ошибка получения состояния сессии:', err)
+          // Сохраняем с текущим уровнем
+          saveGameState({
+            sessionCode: session.code,
+            playerToken: player.token,
+            playerName: player.name,
+            playerId: player.id,
+            isJoined: true,
+            gameStatus: gameStatus,
+            currentLevel: currentLevel || 'green',
+            currentGreenGame: currentGreenGame,
+            currentYellowGame: currentYellowGame,
+            currentRedGame: currentRedGame,
+            playedBonusGames: Array.from(playedBonusGames)
+          })
+        }
       }
       
       console.log('✅ Бонусная игра завершена, возвращаемся к основному уровню')
@@ -534,6 +584,7 @@ function PlayerScreen() {
           return
         } else if (currentRedGame === 2) {
           // Игра 2 завершена, переходим к игре 3
+          setRedTotalScore(prev => prev + score)
           await submitProgress(
             player.token,
             'red',
@@ -543,13 +594,30 @@ function PlayerScreen() {
             false
           )
           setCurrentRedGame(3)
+          // Сохраняем состояние
+          if (session && player) {
+            saveGameState({
+              sessionCode: session.code,
+              playerToken: player.token,
+              playerName: player.name,
+              playerId: player.id,
+              isJoined: true,
+              gameStatus: gameStatus,
+              currentLevel: 'red',
+              currentGreenGame: currentGreenGame,
+              currentYellowGame: currentYellowGame,
+              currentRedGame: 3,
+              playedBonusGames: Array.from(playedBonusGames)
+            })
+          }
           // Проверяем бонусную игру
           if (maybeTriggerBonusGame()) {
             return
           }
           return
         } else if (currentRedGame === 3) {
-          // Игра 3 завершена - все уровни пройдены!
+          // Игра 3 завершена - показываем экран результатов
+          setRedTotalScore(prev => prev + score)
           await submitProgress(
             player.token,
             'red',
@@ -561,13 +629,42 @@ function PlayerScreen() {
           // Показываем фейерверк
           setShowFireworks(true)
           setTimeout(() => setShowFireworks(false), 3000)
+          // Показываем экран результатов красного уровня
+          setCurrentRedGame(4)
+          // Сохраняем состояние после завершения красного уровня
+          saveGameState({
+            sessionCode: session?.code,
+            playerToken: player.token,
+            playerName: player.name,
+            playerId: player.id,
+            isJoined: true,
+            gameStatus: gameStatus,
+            currentLevel: 'red',
+            currentRedGame: 4,
+            redTotalScore: redTotalScore + score
+          })
+          return
+          // Показываем фейерверк
+          setShowFireworks(true)
+          setTimeout(() => setShowFireworks(false), 3000)
           // Проверяем бонусную игру
           if (maybeTriggerBonusGame()) {
             return
           }
-          // Все уровни завершены
-          setCurrentLevel('finished')
-          setCurrentRedGame(0)
+          // Показываем экран результатов красного уровня
+          setCurrentRedGame(4)
+          // Сохраняем состояние после завершения красного уровня
+          saveGameState({
+            sessionCode: session?.code,
+            playerToken: player.token,
+            playerName: player.name,
+            playerId: player.id,
+            isJoined: true,
+            gameStatus: gameStatus,
+            currentLevel: 'red',
+            currentRedGame: 4,
+            redTotalScore: redTotalScore + score
+          })
           return
         }
       }
@@ -585,6 +682,22 @@ function PlayerScreen() {
             false
           )
           setCurrentYellowGame(2)
+          // Сохраняем состояние
+          if (session && player) {
+            saveGameState({
+              sessionCode: session.code,
+              playerToken: player.token,
+              playerName: player.name,
+              playerId: player.id,
+              isJoined: true,
+              gameStatus: gameStatus,
+              currentLevel: 'yellow',
+              currentGreenGame: currentGreenGame,
+              currentYellowGame: 2,
+              currentRedGame: currentRedGame,
+              playedBonusGames: Array.from(playedBonusGames)
+            })
+          }
           // Проверяем бонусную игру
           if (maybeTriggerBonusGame()) {
             return
@@ -592,6 +705,7 @@ function PlayerScreen() {
           return
         } else if (currentYellowGame === 2) {
           // Игра 2 завершена, переходим к игре 3
+          setYellowTotalScore(prev => prev + score)
           await submitProgress(
             player.token,
             'yellow',
@@ -601,6 +715,22 @@ function PlayerScreen() {
             false
           )
           setCurrentYellowGame(3)
+          // Сохраняем состояние
+          if (session && player) {
+            saveGameState({
+              sessionCode: session.code,
+              playerToken: player.token,
+              playerName: player.name,
+              playerId: player.id,
+              isJoined: true,
+              gameStatus: gameStatus,
+              currentLevel: 'yellow',
+              currentGreenGame: currentGreenGame,
+              currentYellowGame: 3,
+              currentRedGame: currentRedGame,
+              playedBonusGames: Array.from(playedBonusGames)
+            })
+          }
           // Проверяем бонусную игру
           if (maybeTriggerBonusGame()) {
             return
@@ -608,6 +738,7 @@ function PlayerScreen() {
           return
         } else if (currentYellowGame === 3) {
           // Игра 3 завершена
+          setYellowTotalScore(prev => prev + score)
           await submitProgress(
             player.token,
             'yellow',
@@ -623,11 +754,9 @@ function PlayerScreen() {
           if (maybeTriggerBonusGame()) {
             return
           }
-          // Переходим на красный уровень
-          setCurrentLevel('red')
-          setCurrentYellowGame(0)
-          setCurrentRedGame(0)
-          // Сохраняем состояние при переходе на новый уровень
+          // Показываем экран результатов желтого уровня
+          setCurrentYellowGame(4)
+          // Сохраняем состояние после завершения желтого уровня
           saveGameState({
             sessionCode: session?.code,
             playerToken: player.token,
@@ -635,10 +764,27 @@ function PlayerScreen() {
             playerId: player.id,
             isJoined: true,
             gameStatus: gameStatus,
-            currentLevel: 'red',
-            currentYellowGame: 0,
-            currentRedGame: 0
+            currentLevel: 'yellow',
+            currentYellowGame: 4,
+            yellowTotalScore: yellowTotalScore + score
           })
+          return
+          // Сохраняем состояние при переходе на новый уровень
+          if (session && player) {
+            saveGameState({
+              sessionCode: session.code,
+              playerToken: player.token,
+              playerName: player.name,
+              playerId: player.id,
+              isJoined: true,
+              gameStatus: gameStatus,
+              currentLevel: 'red',
+              currentGreenGame: currentGreenGame,
+              currentYellowGame: 0,
+              currentRedGame: 0,
+              playedBonusGames: Array.from(playedBonusGames)
+            })
+          }
           return
         }
       }
@@ -674,6 +820,22 @@ function PlayerScreen() {
             false
           )
           setCurrentGreenGame(3)
+          // Сохраняем состояние
+          if (session && player) {
+            saveGameState({
+              sessionCode: session.code,
+              playerToken: player.token,
+              playerName: player.name,
+              playerId: player.id,
+              isJoined: true,
+              gameStatus: gameStatus,
+              currentLevel: 'green',
+              currentGreenGame: 3,
+              currentYellowGame: currentYellowGame,
+              currentRedGame: currentRedGame,
+              playedBonusGames: Array.from(playedBonusGames)
+            })
+          }
           // Проверяем бонусную игру (гарантированно селфи, если еще не играли)
           if (maybeTriggerBonusGame(true)) {
             return
@@ -1291,6 +1453,39 @@ function PlayerScreen() {
           )}
           {currentLevel === 'red' && currentRedGame === 3 && (
             <Simon onComplete={handleLevelComplete} />
+          )}
+          {currentLevel === 'red' && currentRedGame === 4 && (
+            <div style={{textAlign: 'center', padding: '1rem', color: 'white', minHeight: '50vh', display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
+              <h2 style={{fontSize: '1.8rem', marginBottom: '1rem'}}>🎉 Поздравляем!</h2>
+              <h3 style={{fontSize: '1.3rem', marginBottom: '1.5rem'}}>Вы прошли все уровни сложности: 🔴 Красный</h3>
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                padding: '1.5rem',
+                borderRadius: '1rem',
+                marginBottom: '1.5rem',
+                maxWidth: '100%'
+              }}>
+                <p style={{fontSize: '1.1rem', marginBottom: '0.5rem'}}>Ваш результат:</p>
+                <p style={{fontSize: '2rem', color: '#ff4444', fontWeight: 'bold', wordBreak: 'break-word'}}>
+                  {redTotalScore} баллов
+                </p>
+              </div>
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                padding: '1.5rem',
+                borderRadius: '1rem',
+                marginBottom: '1.5rem',
+                maxWidth: '100%'
+              }}>
+                <p style={{fontSize: '1.1rem', marginBottom: '0.5rem'}}>Общий результат за все уровни:</p>
+                <p style={{fontSize: '2rem', color: '#44ff44', fontWeight: 'bold', wordBreak: 'break-word'}}>
+                  {greenTotalScore + yellowTotalScore + redTotalScore} баллов
+                </p>
+              </div>
+              <p style={{fontSize: '1rem', marginTop: '1rem', opacity: 0.8}}>
+                Игра завершена! Ожидайте финальных результатов на экране TV.
+              </p>
+            </div>
           )}
           {currentLevel === 'finished' && (
             <div style={{textAlign: 'center', padding: '2rem', color: 'white'}}>

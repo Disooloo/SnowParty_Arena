@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import './CatchGifts.css'
+import { BONUS_GAMES_CONFIG } from '../config/scores'
 
 function CatchGifts({ onComplete }) {
   const [score, setScore] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(15)
+  const [timeLeft, setTimeLeft] = useState(BONUS_GAMES_CONFIG.catchGifts.timeLimit)
   const [gifts, setGifts] = useState([])
   const [gameStarted, setGameStarted] = useState(false)
   const gameAreaRef = useRef(null)
@@ -62,7 +63,7 @@ function CatchGifts({ onComplete }) {
 
   const handleGiftClick = (giftId) => {
     setGifts(prev => prev.filter(g => g.id !== giftId))
-    setScore(prev => prev + 5)
+    setScore(prev => prev + BONUS_GAMES_CONFIG.catchGifts.pointsPerGift)
   }
 
   const finishGame = () => {

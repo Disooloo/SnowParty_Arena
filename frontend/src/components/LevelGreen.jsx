@@ -55,9 +55,9 @@ function LevelGreen({ onComplete }) {
     const selectedWord = newSelected.map(s => s.letter).join('')
     
     if (selectedWord === currentWord) {
-      // Правильно!
-      const points = Math.max(10, 50 - (Date.now() - startTimeRef.current) / 100)
-      setScore(score + Math.floor(points))
+      // Правильно! Максимум 30 баллов за игру (10 баллов за слово, максимум 3 слова за 3 минуты)
+      const points = 10 // Фиксированные 10 баллов за слово
+      setScore(score + points)
       loadNewWord()
     } else if (selectedWord.length === currentWord.length) {
       // Неправильно

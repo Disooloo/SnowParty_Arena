@@ -315,6 +315,58 @@ function TVScreen() {
             })
           }
         }
+        // Обрабатываем селфи от игроков
+        else if (data.payload.kind === 'selfie.uploaded' && data.payload.data) {
+          const selfieData = data.payload.data
+          console.log('📸 Получено селфи через WebSocket:', selfieData)
+          
+          // Проверяем, что селфи относится к текущей сессии
+          if (!session || !session.code) {
+            console.log('❌ Нет активной сессии, пропускаем селфи')
+            break
+          }
+          
+          // Используем URL, который пришел с сервера (он уже полный)
+          let imageUrl = selfieData.image_url
+          
+          // Если URL не полный (старый формат), формируем его
+          if (imageUrl && !imageUrl.startsWith('http')) {
+            const protocol = window.location.protocol || 'http:'
+            const host = window.location.hostname || 'localhost'
+            const port = window.location.port || '8000'
+            imageUrl = `${protocol}//${host}:${port}${imageUrl}`
+          }
+          
+          console.log('🖼️ URL изображения для карусели:', imageUrl)
+          
+          // Автоматически добавляем селфи в карусель
+          if (imageUrl) {
+            setSelfies(prev => {
+              // Проверяем, нет ли уже такого селфи (по selfie_id)
+              const exists = prev.some(s => s.selfie_id === selfieData.selfie_id)
+              
+              if (exists) {
+                console.log('⚠️ Селфи уже есть в карусели, пропускаем')
+                return prev
+              }
+              
+              console.log('✅ Автоматически добавляем новое селфи в карусель:', {
+                player_name: selfieData.player_name,
+                task: selfieData.task,
+                image_url: imageUrl
+              })
+              
+              return [...prev, {
+                selfie_id: selfieData.selfie_id || Date.now().toString(),
+                player_id: selfieData.player_id,
+                player_name: selfieData.player_name,
+                task: selfieData.task,
+                image_url: imageUrl,
+                created_at: new Date().toISOString()
+              }]
+            })
+          }
+        }
         break
       case 'players.list':
         setPlayers(data.payload.players || [])
@@ -345,55 +397,6 @@ function TVScreen() {
         
         setPreviousLeaderboard(newLeaderboard)
         setLeaderboard(newLeaderboard)
-        break
-      case 'game.event':
-        console.log('Game event:', data.payload)
-        // Обрабатываем селфи от игроков
-        if (data.payload.kind === 'selfie.uploaded' && data.payload.data) {
-          const selfieData = data.payload.data
-          console.log('📸 Получено селфи через WebSocket:', selfieData)
-          
-          // Используем URL, который пришел с сервера (он уже полный)
-          let imageUrl = selfieData.image_url
-          
-          // Если URL не полный (старый формат), формируем его
-          if (imageUrl && !imageUrl.startsWith('http')) {
-            const protocol = window.location.protocol || 'http:'
-            const host = window.location.hostname || 'localhost'
-            imageUrl = `${protocol}//${host}:8000${imageUrl}`
-          }
-          
-          console.log('🖼️ URL изображения для карусели:', imageUrl)
-          
-          // Проверяем, что селфи относится к текущей сессии
-          if (!session || !session.code) {
-            console.log('❌ Нет активной сессии, пропускаем селфи')
-            break
-          }
-          
-          // Добавляем селфи в карусель только если его еще нет
-          setSelfies(prev => {
-            // Проверяем, нет ли уже такого селфи (по selfie_id)
-            const exists = prev.some(s => s.selfie_id === selfieData.selfie_id)
-            
-            if (exists) {
-              console.log('📸 Селфи уже есть в карусели, пропускаем')
-              return prev
-            }
-            
-            const newSelfie = {
-              player_id: selfieData.player_id,
-              player_name: selfieData.player_name,
-              task: selfieData.task,
-              image: imageUrl,
-              image_url: imageUrl,
-              selfie_id: selfieData.selfie_id
-            }
-            
-            console.log('✅ Добавляем новое селфи в карусель:', newSelfie)
-            return [...prev, newSelfie]
-          })
-        }
         break
       default:
         break

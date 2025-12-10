@@ -1,29 +1,14 @@
 import { useState, useEffect } from 'react'
 import './TrueOrFalse.css'
+import { TRUE_OR_FALSE_QUESTIONS } from '../data/words'
+import { YELLOW_LEVEL_CONFIG } from '../config/scores'
 
-// Вопросы о Новом годе (правда/ложь)
-const QUESTIONS = [
-  { id: 1, question: 'В России Новый год отмечают 1 января', answer: true },
-  { id: 2, question: 'Дед Мороз живет на Северном полюсе', answer: false },
-  { id: 3, question: 'Ёлка традиционно украшается игрушками', answer: true },
-  { id: 4, question: 'Снеговик обычно делается из двух шаров', answer: false },
-  { id: 5, question: 'В новогоднюю ночь принято загадывать желания', answer: true },
-  { id: 6, question: 'Оливье - это новогодний салат', answer: true },
-  { id: 7, question: 'В России Дед Мороз приезжает на оленях', answer: false },
-  { id: 8, question: 'Снежинки всегда имеют 6 лучей', answer: true },
-  { id: 9, question: 'Новогодние подарки кладут под ёлку', answer: true },
-  { id: 10, question: 'В новогоднюю ночь бьют куранты 12 раз', answer: true },
-  { id: 11, question: 'Дед Мороз носит красную шапку', answer: true },
-  { id: 12, question: 'Снег состоит из воды', answer: true },
-  { id: 13, question: 'Новый год в России отмечают дважды', answer: true },
-  { id: 14, question: 'Ёлка всегда зелёная', answer: true },
-  { id: 15, question: 'Снеговик тает на солнце', answer: true },
-  { id: 16, question: 'Дед Мороз приходит через дымоход', answer: false },
-  { id: 17, question: 'В новогоднюю ночь запускают фейерверки', answer: true },
-  { id: 18, question: 'Мандарины - традиционный новогодний фрукт', answer: true },
-  { id: 19, question: 'Снег бывает только белым', answer: false },
-  { id: 20, question: 'Новый год - самый главный праздник в России', answer: true },
-]
+// Преобразуем вопросы в формат с id
+const QUESTIONS = TRUE_OR_FALSE_QUESTIONS.map((q, idx) => ({
+  id: idx + 1,
+  question: q.question,
+  answer: q.answer
+}))
 
 function shuffleArray(array) {
   const shuffled = [...array]
@@ -44,9 +29,9 @@ function TrueOrFalse({ onComplete }) {
 
   useEffect(() => {
     if (gameStarted) {
-      // Выбираем 10 случайных вопросов
+      // Выбираем вопросы из настроек
       const shuffled = shuffleArray(QUESTIONS)
-      setQuestions(shuffled.slice(0, 10))
+      setQuestions(shuffled.slice(0, YELLOW_LEVEL_CONFIG.game1.questionsCount))
     }
   }, [gameStarted])
 
@@ -66,7 +51,7 @@ function TrueOrFalse({ onComplete }) {
     const isCorrect = answer === currentQuestion.answer
     
     if (isCorrect) {
-      setScore(score + 10) // +10 баллов за правильный ответ (максимум 100 за все 10 вопросов)
+      setScore(score + YELLOW_LEVEL_CONFIG.game1.pointsPerAnswer) // Баллы из настроек
     }
     
     setShowResult(true)
@@ -87,7 +72,7 @@ function TrueOrFalse({ onComplete }) {
   const finishGame = () => {
     onComplete(score, 0, {
       questions_total: questions.length,
-      correct_answers: score / 5,
+      correct_answers: score / YELLOW_LEVEL_CONFIG.game1.pointsPerAnswer,
       total_score: score
     })
   }
@@ -98,7 +83,8 @@ function TrueOrFalse({ onComplete }) {
         <h2>🟡 Правда или Ложь</h2>
         <h3>Новогодние факты</h3>
         <p>Ответьте на 10 вопросов о Новом годе!</p>
-        <p style={{color: '#ffaa00', marginTop: '1rem'}}>💰 За каждый правильный ответ: <strong>10 баллов</strong></p>
+        <p style={{color: '#ffaa00', marginTop: '1rem'}}>💰 За каждый правильный ответ: <strong>{YELLOW_LEVEL_CONFIG.game1.pointsPerAnswer} баллов</strong></p>
+        <p style={{color: '#ffaa00', marginTop: '0.5rem'}}>📊 Вопросов: <strong>{YELLOW_LEVEL_CONFIG.game1.questionsCount}</strong></p>
         <button onClick={startGame} className="start-button">
           Начать
         </button>
@@ -115,7 +101,7 @@ function TrueOrFalse({ onComplete }) {
             Ваш счет: <strong>{score} баллов</strong>
           </p>
           <p style={{fontSize: '1.2rem', marginTop: '1rem'}}>
-            Правильных ответов: {score / 10} из {questions.length}
+            Правильных ответов: {score / YELLOW_LEVEL_CONFIG.game1.pointsPerAnswer} из {questions.length}
           </p>
         </div>
       </div>
@@ -130,7 +116,7 @@ function TrueOrFalse({ onComplete }) {
         <h2 style={{fontSize: '1.5rem', marginBottom: '0.5rem'}}>🟡 Правда или Ложь</h2>
         <div className="game-stats" style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center'}}>
           <div className="stat" style={{fontSize: '0.9rem', padding: '0.4rem 0.8rem'}}>
-            Вопрос: {currentQuestionIndex + 1}/10
+            Вопрос: {currentQuestionIndex + 1}/{YELLOW_LEVEL_CONFIG.game1.questionsCount}
           </div>
           <div className="stat" style={{fontSize: '0.9rem', padding: '0.4rem 0.8rem'}}>
             Очки: {score}
@@ -212,7 +198,7 @@ function TrueOrFalse({ onComplete }) {
           color: selectedAnswer === currentQuestion.answer ? '#44ff44' : '#ff4444',
           fontWeight: 'bold'
         }}>
-          {selectedAnswer === currentQuestion.answer ? '✅ Правильно! +10 баллов' : '❌ Неправильно'}
+          {selectedAnswer === currentQuestion.answer ? `✅ Правильно! +${YELLOW_LEVEL_CONFIG.game1.pointsPerAnswer} баллов` : '❌ Неправильно'}
         </div>
       )}
     </div>

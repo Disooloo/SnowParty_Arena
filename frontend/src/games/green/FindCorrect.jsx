@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './FindCorrect.css'
+import { GREEN_LEVEL_CONFIG } from '../config/scores'
 
 // Картинки: новогодние и не новогодние
 const IMAGES = [
@@ -99,7 +100,26 @@ function FindCorrect({ onComplete }) {
     if (selectedImages.includes(imageId)) {
       setSelectedImages(selectedImages.filter(id => id !== imageId))
     } else {
-      setSelectedImages([...selectedImages, imageId])
+      const newSelected = [...selectedImages, imageId]
+      setSelectedImages(newSelected)
+      
+      // Проверяем, выбрано ли ровно 3 правильных и нет неправильных
+      const correctSelected = newSelected.filter(id => {
+        const img = images.find(i => i.id === id)
+        return img && img.isNewYear
+      })
+      const wrongSelected = newSelected.filter(id => {
+        const img = images.find(i => i.id === id)
+        return img && !img.isNewYear
+      })
+      
+      // Если выбрано ровно 3 правильных и нет неправильных - автоматически завершаем раунд
+      if (correctSelected.length === 3 && wrongSelected.length === 0 && newSelected.length === 3) {
+        // Небольшая задержка для визуального эффекта
+        setTimeout(() => {
+          finishRound()
+        }, 500)
+      }
     }
   }
 
@@ -114,9 +134,10 @@ function FindCorrect({ onComplete }) {
       return img && !img.isNewYear
     })
     
-    // Если выбраны все 3 правильные и нет неправильных - 10 баллов, иначе 0
-    // Максимум 30 баллов за все 3 раунда (10 × 3)
-    const roundScore = (correctSelected.length === 3 && wrongSelected.length === 0 && selectedImages.length === 3) ? 10 : 0
+    // Если выбраны все 3 правильные и нет неправильных - баллы из настроек, иначе 0
+    const roundScore = (correctSelected.length === 3 && wrongSelected.length === 0 && selectedImages.length === 3) 
+      ? GREEN_LEVEL_CONFIG.game2.pointsPerRound 
+      : 0
     const newRoundScores = [...roundScores, roundScore]
     setRoundScores(newRoundScores)
     setTotalScore(newRoundScores.reduce((a, b) => a + b, 0))
@@ -146,8 +167,9 @@ function FindCorrect({ onComplete }) {
         <h2>🎯 Найди правильно</h2>
         <h3>Выберите все новогодние картинки</h3>
         <p>3 раунда по 6 картинок. Выберите все новогодние!</p>
-        <p style={{color: '#44ff44', marginTop: '1rem'}}>💰 За раунд без ошибок: <strong>10 баллов</strong></p>
+        <p style={{color: '#44ff44', marginTop: '1rem'}}>💰 За раунд без ошибок: <strong>{GREEN_LEVEL_CONFIG.game2.pointsPerRound} баллов</strong></p>
         <p style={{color: '#ff4444', marginTop: '0.5rem'}}>❌ Если хотя бы 1 ошибка: <strong>0 баллов</strong></p>
+        <p style={{color: '#44ff44', marginTop: '0.5rem'}}>📊 Раундов: <strong>{GREEN_LEVEL_CONFIG.game2.rounds}</strong></p>
         <button onClick={startGame} className="start-button">
           Начать
         </button>
@@ -163,7 +185,7 @@ function FindCorrect({ onComplete }) {
           <h3>Результаты раундов:</h3>
           {roundScores.map((score, idx) => (
             <p key={idx} style={{fontSize: '1.2rem', margin: '0.5rem 0'}}>
-              Раунд {idx + 1}: {score === 10 ? '✅ 10 баллов' : '❌ 0 баллов'}
+              Раунд {idx + 1}: {score === GREEN_LEVEL_CONFIG.game2.pointsPerRound ? `✅ ${GREEN_LEVEL_CONFIG.game2.pointsPerRound} баллов` : '❌ 0 баллов'}
             </p>
           ))}
           <p style={{fontSize: '1.5rem', marginTop: '1rem', color: '#44ff44'}}>
@@ -214,14 +236,31 @@ function FindCorrect({ onComplete }) {
         })}
       </div>
 
-      <button onClick={finishRound} className="finish-button" style={{
-        width: '100%',
-        maxWidth: '300px',
-        margin: '1rem auto',
-        display: 'block'
-      }}>
-        Завершить раунд
-      </button>
+      {selectedImages.length < 3 && (
+        <button onClick={finishRound} className="finish-button" style={{
+          width: '100%',
+          maxWidth: '300px',
+          margin: '1rem auto',
+          display: 'block'
+        }}>
+          Завершить раунд
+        </button>
+      )}
+      {selectedImages.length === 3 && (
+        <div style={{
+          width: '100%',
+          maxWidth: '300px',
+          margin: '1rem auto',
+          padding: '1rem',
+          background: 'rgba(68, 255, 68, 0.2)',
+          borderRadius: '0.5rem',
+          textAlign: 'center',
+          color: '#44ff44',
+          fontWeight: 'bold'
+        }}>
+          Выбрано 3 правильных! Переход к следующему раунду...
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { uploadSelfie } from '../../utils/api'
 import './SelfieMission.css'
+import { BONUS_GAMES_CONFIG } from '../config/scores'
 
 const SELFIE_TASKS = [
   'с ёлкой',
@@ -78,12 +79,12 @@ function SelfieMission({ onComplete, playerName, playerToken }) {
       // Отправляем результат через 1 секунду
       setTimeout(() => {
         console.log('🎯 Вызываем onComplete с результатом')
-        onComplete(50, 0, { 
+        onComplete(BONUS_GAMES_CONFIG.selfie.points, 0, { 
           game_type: 'selfie', 
           task: task,
           image_url: result.image_url,
           player_name: playerName,
-          final_score: 50,
+          final_score: BONUS_GAMES_CONFIG.selfie.points,
           selfie_uploaded: true // Флаг что селфи загружено
         })
       }, 1000)

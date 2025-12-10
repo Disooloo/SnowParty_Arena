@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import './TapBattle.css'
+import { GREEN_LEVEL_CONFIG } from '../config/scores'
 
 function TapBattle({ onComplete }) {
   const [taps, setTaps] = useState(0)
   const [score, setScore] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(60) // 1 минута
+  const [timeLeft, setTimeLeft] = useState(GREEN_LEVEL_CONFIG.game3.timeLimit) // Время из настроек
   const [gameStarted, setGameStarted] = useState(false)
   const startTimeRef = useRef(null)
 
@@ -30,9 +31,9 @@ function TapBattle({ onComplete }) {
     const newTaps = taps + 1
     setTaps(newTaps)
     
-    // Каждые 10 тапов = 2 очка (максимум 40 баллов за минуту при 200 тапах)
+    // Баллы из настроек за каждые 10 тапов
     if (newTaps % 10 === 0) {
-      setScore(score + 2)
+      setScore(score + GREEN_LEVEL_CONFIG.game3.pointsPerTenTaps)
     }
   }
 
@@ -49,8 +50,8 @@ function TapBattle({ onComplete }) {
       <div className="tap-battle">
         <h2>⚡ Тап-батл</h2>
         <h3>Тапайте на снеговика как можно быстрее!</h3>
-        <p>Каждые 10 тапов = 1 очко</p>
-        <p style={{color: '#44ff44', marginTop: '1rem'}}>💰 Время: <strong>1 минута</strong></p>
+        <p>Каждые 10 тапов = {GREEN_LEVEL_CONFIG.game3.pointsPerTenTaps} очка</p>
+        <p style={{color: '#44ff44', marginTop: '1rem'}}>💰 Время: <strong>{GREEN_LEVEL_CONFIG.game3.timeLimit} секунд</strong></p>
         <button onClick={startGame} className="start-button">
           Начать
         </button>

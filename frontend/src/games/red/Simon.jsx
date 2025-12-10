@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import './Simon.css'
+import { RED_LEVEL_CONFIG } from '../config/scores'
 
 const COLORS = [
   { id: 1, emoji: '🔴', name: 'Красный', color: '#ff4444' },
@@ -97,8 +98,8 @@ function Simon({ onComplete }) {
     
     // Если последовательность завершена правильно
     if (newUserSequence.length === sequence.length) {
-      // Уровень пройден (максимум 30 баллов за 3 уровня)
-      const levelScore = Math.min(10, currentLevel * 3) // 3, 6, 9, 10... максимум 10 за уровень
+      // Уровень пройден - баллы из настроек
+      const levelScore = Math.min(RED_LEVEL_CONFIG.game3.maxLevelPoints, currentLevel * (RED_LEVEL_CONFIG.game3.pointsPerLevel / 3))
       setScore(score + levelScore)
       
       // Переходим на следующий уровень
@@ -128,7 +129,7 @@ function Simon({ onComplete }) {
         <h2>🔴 Саймон</h2>
         <h3>Повторите последовательность!</h3>
         <p>Запомните и повторите последовательность цветов</p>
-        <p style={{color: '#ff4444', marginTop: '1rem'}}>💰 За каждый уровень: <strong>до 10 баллов</strong></p>
+        <p style={{color: '#ff4444', marginTop: '1rem'}}>💰 За каждый уровень: <strong>до {RED_LEVEL_CONFIG.game3.maxLevelPoints} баллов</strong></p>
         <p>📈 Последовательность становится длиннее с каждым уровнем!</p>
         <button onClick={startGame} className="start-button">
           Начать

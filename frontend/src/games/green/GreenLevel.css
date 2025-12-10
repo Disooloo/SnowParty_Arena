@@ -81,7 +81,7 @@
 }
 
 .letter-button {
-  padding: 1.2rem;
+  padding: 1rem;
   font-size: 1.5rem;
   font-weight: bold;
   background: rgba(255, 255, 255, 0.2);
@@ -94,7 +94,7 @@
 
 .letter-button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 .letter-button:disabled,
@@ -108,18 +108,19 @@
   width: 100%;
   padding: 1rem;
   font-size: 1.2rem;
-  background: #44ff44;
-  color: #000;
-  border: none;
+  background: rgba(68, 255, 68, 0.6);
+  color: #fff;
+  border: 2px solid rgba(68, 255, 68, 0.8);
   border-radius: 0.5rem;
   cursor: pointer;
   font-weight: bold;
   margin-top: 1rem;
-  transition: transform 0.2s;
+  transition: all 0.2s;
 }
 
 .start-button:hover,
 .finish-button:hover {
+  background: rgba(68, 255, 68, 0.8);
   transform: scale(1.05);
 }
 

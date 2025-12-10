@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import './CatchGame.css'
+import { RED_LEVEL_CONFIG } from '../config/scores'
 
 // Предметы: правильные (ловим) и неправильные (избегаем)
 const GOOD_ITEMS = [
@@ -21,8 +22,8 @@ const BAD_ITEMS = [
 function CatchGame({ onComplete }) {
   const [gameStarted, setGameStarted] = useState(false)
   const [score, setScore] = useState(0)
-  const [lives, setLives] = useState(3)
-  const [timeLeft, setTimeLeft] = useState(60) // 60 секунд
+  const [lives, setLives] = useState(RED_LEVEL_CONFIG.game1.lives)
+  const [timeLeft, setTimeLeft] = useState(RED_LEVEL_CONFIG.game1.timeLimit) // Время из настроек
   const [fallingItems, setFallingItems] = useState([])
   const [gameOver, setGameOver] = useState(false)
   const gameAreaRef = useRef(null)
@@ -92,8 +93,8 @@ function CatchGame({ onComplete }) {
     if (gameOver) return
     
     if (item.isGood) {
-      // Ловим правильный предмет
-      setScore(score + 1)
+      // Ловим правильный предмет - баллы из настроек
+      setScore(score + 1) // Счетчик предметов, потом умножаем на pointsPerItem
     } else {
       // Попались на плохой предмет - теряем жизнь
       setLives(lives - 1)
@@ -118,8 +119,8 @@ function CatchGame({ onComplete }) {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
     }
-    // За каждое пойманное правильное даем 2 балла (максимум ~40 за 60 секунд)
-    const finalScore = score * 2
+    // Баллы из настроек за каждое пойманное правильное
+    const finalScore = score * RED_LEVEL_CONFIG.game1.pointsPerItem
     onComplete(finalScore, 0, {
       items_caught: score,
       lives_remaining: lives,
@@ -134,9 +135,9 @@ function CatchGame({ onComplete }) {
         <h3>Ловите правильные предметы!</h3>
         <p>Ловите новогодние предметы (🎁⭐❄️🍬🔔)</p>
         <p style={{color: '#ff4444', marginTop: '1rem'}}>⚠️ Избегайте опасных (💣🔥⚡💀☠️)</p>
-        <p style={{color: '#44ff44', marginTop: '1rem'}}>💰 За каждый правильный предмет: <strong>2 балла</strong></p>
-        <p>⏳ Время: <strong>60 секунд</strong></p>
-        <p>❤️ Жизни: <strong>3</strong></p>
+        <p style={{color: '#44ff44', marginTop: '1rem'}}>💰 За каждый правильный предмет: <strong>{RED_LEVEL_CONFIG.game1.pointsPerItem} балла</strong></p>
+        <p>⏳ Время: <strong>{RED_LEVEL_CONFIG.game1.timeLimit} секунд</strong></p>
+        <p>❤️ Жизни: <strong>{RED_LEVEL_CONFIG.game1.lives}</strong></p>
         <button onClick={startGame} className="start-button">
           Начать
         </button>
@@ -150,7 +151,7 @@ function CatchGame({ onComplete }) {
         <h2>🎉 Игра завершена!</h2>
         <div style={{marginTop: '2rem'}}>
           <p style={{fontSize: '1.5rem', color: '#44ff44'}}>
-            Ваш счет: <strong>{score * 2} баллов</strong>
+            Ваш счет: <strong>{score * RED_LEVEL_CONFIG.game1.pointsPerItem} баллов</strong>
           </p>
           <p style={{fontSize: '1.2rem', marginTop: '1rem'}}>
             Поймано предметов: {score}
@@ -169,7 +170,7 @@ function CatchGame({ onComplete }) {
         <h2 style={{fontSize: '1.5rem', marginBottom: '0.5rem'}}>🔴 Реакция и ловля</h2>
         <div className="game-stats" style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center'}}>
           <div className="stat" style={{fontSize: '0.9rem', padding: '0.4rem 0.8rem'}}>
-            Очки: {score * 2}
+            Очки: {score * RED_LEVEL_CONFIG.game1.pointsPerItem}
           </div>
           <div className="stat" style={{fontSize: '0.9rem', padding: '0.4rem 0.8rem', color: lives <= 1 ? '#ff4444' : '#fff'}}>
             ❤️ Жизни: {lives}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './FindToy.css'
+import { YELLOW_LEVEL_CONFIG } from '../config/scores'
 
 // Предметы: новогодние и неправильные
 const ITEMS = [
@@ -41,8 +42,8 @@ function FindToy({ onComplete }) {
 
   useEffect(() => {
     if (gameStarted) {
-      // Создаем 4-5 раундов
-      const numRounds = 5
+      // Количество раундов из настроек
+      const numRounds = YELLOW_LEVEL_CONFIG.game3.rounds
       const newRounds = []
       for (let i = 0; i < numRounds; i++) {
         // В каждом раунде 12-20 предметов, из которых 3-5 правильных
@@ -64,7 +65,7 @@ function FindToy({ onComplete }) {
     if (index >= roundsList.length) return
     setCurrentItems(roundsList[index])
     setSelectedItems([])
-    setTimeLeft(5)
+    setTimeLeft(YELLOW_LEVEL_CONFIG.game3.timePerRound)
   }
 
   const startGame = () => {
@@ -110,11 +111,10 @@ function FindToy({ onComplete }) {
     const correctItems = currentItems.filter(item => item.isNewYear)
     const unselectedCorrect = correctItems.filter(item => !selectedItems.includes(item.id))
 
-    // Очки: за правильный выбор +2, за ошибку -1, бонус за все правильные без ошибок +3
-    // Максимум ~35 баллов за 5 раундов
-    let roundScore = correctSelected.length * 2 - wrongSelected.length
+    // Баллы из настроек
+    let roundScore = correctSelected.length * YELLOW_LEVEL_CONFIG.game3.pointsPerCorrect - wrongSelected.length * YELLOW_LEVEL_CONFIG.game3.penaltyPerWrong
     if (wrongSelected.length === 0 && unselectedCorrect.length === 0) {
-      roundScore += 3 // Бонус за идеальный раунд
+      roundScore += YELLOW_LEVEL_CONFIG.game3.bonusPerfectRound // Бонус за идеальный раунд
     }
     roundScore = Math.max(0, roundScore) // Не меньше 0
 
@@ -150,11 +150,11 @@ function FindToy({ onComplete }) {
       <div className="find-toy">
         <h2>🟡 Найди правильную ёлочную игрушку</h2>
         <h3>Визуальное задание на внимание</h3>
-        <p>5 раундов по 5 секунд каждый</p>
+        <p>{YELLOW_LEVEL_CONFIG.game3.rounds} раундов по {YELLOW_LEVEL_CONFIG.game3.timePerRound} секунд каждый</p>
         <p>Найдите все новогодние предметы!</p>
-        <p style={{color: '#ffaa00', marginTop: '1rem'}}>💰 За правильный выбор: <strong>+2 балла</strong></p>
-        <p style={{color: '#ff4444', marginTop: '0.5rem'}}>❌ За ошибку: <strong>-1 балл</strong></p>
-        <p style={{color: '#44ff44', marginTop: '0.5rem'}}>⭐ Бонус за идеальный раунд: <strong>+3 балла</strong></p>
+        <p style={{color: '#ffaa00', marginTop: '1rem'}}>💰 За правильный выбор: <strong>+{YELLOW_LEVEL_CONFIG.game3.pointsPerCorrect} балла</strong></p>
+        <p style={{color: '#ff4444', marginTop: '0.5rem'}}>❌ За ошибку: <strong>-{YELLOW_LEVEL_CONFIG.game3.penaltyPerWrong} балл</strong></p>
+        <p style={{color: '#44ff44', marginTop: '0.5rem'}}>⭐ Бонус за идеальный раунд: <strong>+{YELLOW_LEVEL_CONFIG.game3.bonusPerfectRound} балла</strong></p>
         <button onClick={startGame} className="start-button">
           Начать
         </button>

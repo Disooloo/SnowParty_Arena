@@ -1,97 +1,15 @@
 import { useState, useEffect } from 'react'
 import './Cipher.css'
+import { CIPHER_RIDDLES } from '../data/words'
+import { RED_LEVEL_CONFIG } from '../config/scores'
 
-// Загадки с подсказками
-const CIPHERS = [
-  {
-    id: 1,
-    hints: [
-      'Это украшение на ёлке',
-      'Оно светится и мигает',
-      'Бывает разных цветов',
-      'Начинается с буквы Г'
-    ],
-    answer: 'ГИРЛЯНДА',
-    category: 'Новогоднее украшение'
-  },
-  {
-    id: 2,
-    hints: [
-      'Это зимний персонаж',
-      'Его делают из снега',
-      'У него есть морковка вместо носа',
-      'Начинается с буквы С'
-    ],
-    answer: 'СНЕГОВИК',
-    category: 'Зимний персонаж'
-  },
-  {
-    id: 3,
-    hints: [
-      'Это новогодний подарок',
-      'Он под ёлкой',
-      'Обычно в красивой упаковке',
-      'Начинается с буквы П'
-    ],
-    answer: 'ПОДАРОК',
-    category: 'Подарок'
-  },
-  {
-    id: 4,
-    hints: [
-      'Это новогодний фрукт',
-      'Он оранжевого цвета',
-      'Его едят на Новый год',
-      'Начинается с буквы М'
-    ],
-    answer: 'МАНДАРИН',
-    category: 'Фрукт'
-  },
-  {
-    id: 5,
-    hints: [
-      'Это новогодний салат',
-      'Он очень популярный',
-      'В нем есть колбаса и майонез',
-      'Начинается с буквы О'
-    ],
-    answer: 'ОЛИВЬЕ',
-    category: 'Блюдо'
-  },
-  {
-    id: 6,
-    hints: [
-      'Это новогодний персонаж',
-      'Он приносит подарки',
-      'У него есть борода',
-      'Начинается с буквы Д'
-    ],
-    answer: 'ДЕДМОРОЗ',
-    category: 'Персонаж'
-  },
-  {
-    id: 7,
-    hints: [
-      'Это новогодний фейерверк',
-      'Он взрывается в небе',
-      'Очень красивый',
-      'Начинается с буквы С'
-    ],
-    answer: 'САЛЮТ',
-    category: 'Фейерверк'
-  },
-  {
-    id: 8,
-    hints: [
-      'Это новогодняя игрушка',
-      'Она круглая',
-      'Обычно стеклянная',
-      'Начинается с буквы Ш'
-    ],
-    answer: 'ШАР',
-    category: 'Игрушка'
-  }
-]
+// Преобразуем загадки в формат с id
+const CIPHERS = CIPHER_RIDDLES.map((c, idx) => ({
+  id: idx + 1,
+  hints: c.hints,
+  answer: c.answer,
+  category: c.category
+}))
 
 function shuffleArray(array) {
   const shuffled = [...array]
@@ -115,9 +33,9 @@ function Cipher({ onComplete }) {
 
   useEffect(() => {
     if (gameStarted) {
-      // Выбираем 3 случайные загадки
+      // Количество загадок из настроек
       const shuffled = shuffleArray(CIPHERS)
-      setCiphers(shuffled.slice(0, 3))
+      setCiphers(shuffled.slice(0, RED_LEVEL_CONFIG.game2.ciphersCount))
       loadCipher(0, shuffled.slice(0, 3))
     }
   }, [gameStarted])
@@ -152,10 +70,9 @@ function Cipher({ onComplete }) {
     setAttempts(attempts + 1)
     
     if (normalizedAnswer === normalizedCorrect) {
-      // Правильно! Даем очки в зависимости от количества использованных подсказок
-      // Базовые 10 + бонус за скорость (максимум 30 за загадку)
+      // Правильно! Баллы из настроек
       const hintsUsed = currentHintIndex + 1
-      const points = 10 + (cipher.hints.length - hintsUsed) * 2 // Базовые 10 + бонус за скорость
+      const points = RED_LEVEL_CONFIG.game2.basePoints + (cipher.hints.length - hintsUsed) * RED_LEVEL_CONFIG.game2.bonusPerHint
       setScore(score + points)
       setShowResult(true)
       
@@ -194,8 +111,9 @@ function Cipher({ onComplete }) {
         <h2>🔴 Шифровка</h2>
         <h3>Угадайте слово по подсказкам!</h3>
         <p>Вам дадут несколько подсказок. Чем быстрее угадаете - тем больше очков!</p>
-        <p style={{color: '#ff4444', marginTop: '1rem'}}>💰 Базовые очки: <strong>10</strong></p>
-        <p style={{color: '#44ff44', marginTop: '0.5rem'}}>⭐ Бонус за скорость: <strong>+2 за каждую неиспользованную подсказку</strong></p>
+        <p style={{color: '#ff4444', marginTop: '1rem'}}>💰 Базовые очки: <strong>{RED_LEVEL_CONFIG.game2.basePoints}</strong></p>
+        <p style={{color: '#44ff44', marginTop: '0.5rem'}}>⭐ Бонус за скорость: <strong>+{RED_LEVEL_CONFIG.game2.bonusPerHint} за каждую неиспользованную подсказку</strong></p>
+        <p style={{color: '#ff4444', marginTop: '0.5rem'}}>📊 Загадок: <strong>{RED_LEVEL_CONFIG.game2.ciphersCount}</strong></p>
         <button onClick={startGame} className="start-button">
           Начать
         </button>
@@ -225,7 +143,7 @@ function Cipher({ onComplete }) {
         <h2 style={{fontSize: '1.5rem', marginBottom: '0.5rem'}}>🔴 Шифровка</h2>
         <div className="game-stats" style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center'}}>
           <div className="stat" style={{fontSize: '0.9rem', padding: '0.4rem 0.8rem'}}>
-            Загадка: {cipherIndex + 1}/{ciphers.length}
+            Загадка: {cipherIndex + 1}/{RED_LEVEL_CONFIG.game2.ciphersCount}
           </div>
           <div className="stat" style={{fontSize: '0.9rem', padding: '0.4rem 0.8rem'}}>
             Очки: {score}

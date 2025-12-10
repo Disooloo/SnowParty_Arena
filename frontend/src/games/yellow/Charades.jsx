@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './Charades.css'
+import { YELLOW_LEVEL_CONFIG } from '../config/scores'
 
 // Простые пазлы для сборки (3 картинки)
 const PUZZLES = [
@@ -112,8 +113,8 @@ function Charades({ onComplete }) {
   }
 
   const finishGame = () => {
-      // За каждый собранный пазл даем 5 баллов (максимум 15 за 3 пазла)
-      const finalScore = completedPuzzles * 5
+      // Баллы из настроек за каждый собранный пазл
+      const finalScore = completedPuzzles * YELLOW_LEVEL_CONFIG.game2.pointsPerPuzzle
     onComplete(finalScore, 0, {
       puzzles_completed: completedPuzzles,
       total_puzzles: puzzles.length,
@@ -127,7 +128,8 @@ function Charades({ onComplete }) {
         <h2>🟡 Шарады</h2>
         <h3>Соберите картинки</h3>
         <p>Соберите 3 пазла, выбирая правильные кусочки!</p>
-        <p style={{color: '#ffaa00', marginTop: '1rem'}}>💰 За каждый пазл: <strong>5 баллов</strong></p>
+        <p style={{color: '#ffaa00', marginTop: '1rem'}}>💰 За каждый пазл: <strong>{YELLOW_LEVEL_CONFIG.game2.pointsPerPuzzle} баллов</strong></p>
+        <p style={{color: '#ffaa00', marginTop: '0.5rem'}}>📊 Пазлов: <strong>{YELLOW_LEVEL_CONFIG.game2.puzzlesCount}</strong></p>
         <button onClick={startGame} className="start-button">
           Начать
         </button>
@@ -141,7 +143,7 @@ function Charades({ onComplete }) {
         <h2>🎉 Все пазлы собраны!</h2>
         <div style={{marginTop: '2rem'}}>
           <p style={{fontSize: '1.5rem', color: '#44ff44'}}>
-            Ваш счет: <strong>{score * 5} баллов</strong>
+            Ваш счет: <strong>{score * YELLOW_LEVEL_CONFIG.game2.pointsPerPuzzle} баллов</strong>
           </p>
           <p style={{fontSize: '1.2rem', marginTop: '1rem'}}>
             Собрано пазлов: {completedPuzzles} из {puzzles.length}

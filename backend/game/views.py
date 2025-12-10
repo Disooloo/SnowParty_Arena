@@ -305,14 +305,22 @@ def submit_progress(request):
         # Пересчитываем общий счёт из всех завершённых уровней
         player.total_score = sum(p.score for p in player.progresses.filter(status='completed'))
         
-        # Переход на следующий уровень
-        if level == 'green':
-            player.current_level = 'yellow'
-        elif level == 'yellow':
-            player.current_level = 'red'
-        elif level == 'red':
-            player.status = 'done'
-            player.current_level = 'red'
+        # Переход на следующий уровень только если все игры уровня завершены
+        # Проверяем количество завершенных игр в details
+        game_number = details.get('game')
+        if game_number:
+            # Это одна из игр уровня, проверяем завершенность всего уровня
+            if level == 'green' and game_number == 3:
+                # Все 3 игры зеленого уровня завершены
+                player.current_level = 'yellow'
+            elif level == 'yellow' and game_number == 3:
+                # Все 3 игры желтого уровня завершены
+                player.current_level = 'red'
+            elif level == 'red' and game_number == 3:
+                # Все 3 игры красного уровня завершены
+                player.status = 'done'
+                player.current_level = 'red'
+        # Если game_number нет, не меняем уровень (старая логика для совместимости)
         
         player.save()
     

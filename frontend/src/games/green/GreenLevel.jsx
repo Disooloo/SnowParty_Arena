@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './GreenLevel.css'
-
-const NEW_YEAR_WORDS = [
-  'СНЕГОВИК', 'ЕЛКА', 'ПОДАРОК', 'САЛЮТ', 'ХЛОПУШКА',
-  'МАНДАРИН', 'СНЕЖИНКА', 'СВЕЧА', 'ГИРЛЯНДА', 'КОНФЕТА'
-]
+import { NEW_YEAR_WORDS } from '../data/words'
+import { GREEN_LEVEL_CONFIG } from '../config/scores'
 
 function shuffleArray(array) {
   const shuffled = [...array]
@@ -21,7 +18,7 @@ function GreenLevel({ onComplete }) {
   const [selectedLetters, setSelectedLetters] = useState([])
   const [score, setScore] = useState(0)
   const [wordsCompleted, setWordsCompleted] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(180) // 3 минуты
+  const [timeLeft, setTimeLeft] = useState(GREEN_LEVEL_CONFIG.game1.timeLimit) // Время из настроек
   const [gameStarted, setGameStarted] = useState(false)
   const startTimeRef = useRef(null)
 
@@ -56,8 +53,8 @@ function GreenLevel({ onComplete }) {
     const selectedWord = newSelected.map(s => s.letter).join('')
     
     if (selectedWord === currentWord) {
-      // Правильно! +1 балл за зелёный уровень
-      setScore(score + 1)
+      // Правильно! Баллы из настроек
+      setScore(score + GREEN_LEVEL_CONFIG.game1.pointsPerWord)
       setWordsCompleted(wordsCompleted + 1)
       loadNewWord()
     } else if (selectedWord.length === currentWord.length) {
@@ -85,7 +82,8 @@ function GreenLevel({ onComplete }) {
         <h2>🟢 Зелёный уровень</h2>
         <h3>Перемешанные слова</h3>
         <p>Соберите новогодние слова из перемешанных букв!</p>
-        <p style={{color: '#44ff44', marginTop: '1rem'}}>💰 За каждое слово: <strong>1 балл</strong></p>
+        <p style={{color: '#44ff44', marginTop: '1rem'}}>💰 За каждое слово: <strong>{GREEN_LEVEL_CONFIG.game1.pointsPerWord} баллов</strong></p>
+        <p style={{color: '#44ff44', marginTop: '0.5rem'}}>⏱️ Время: <strong>{GREEN_LEVEL_CONFIG.game1.timeLimit} секунд</strong></p>
         <button onClick={startGame} className="start-button">
           Начать
         </button>

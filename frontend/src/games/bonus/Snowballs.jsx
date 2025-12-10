@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import './Snowballs.css'
+import { BONUS_GAMES_CONFIG } from '../config/scores'
 
 function Snowballs({ onComplete }) {
   const [score, setScore] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(15)
+  const [timeLeft, setTimeLeft] = useState(BONUS_GAMES_CONFIG.snowballs.timeLimit)
   const [snowmanVisible, setSnowmanVisible] = useState(false)
   const [snowmanPosition, setSnowmanPosition] = useState({ left: 0, top: 0 })
   const [gameStarted, setGameStarted] = useState(false)
@@ -56,7 +57,7 @@ function Snowballs({ onComplete }) {
 
   const handleSnowmanClick = () => {
     setSnowmanVisible(false)
-    setScore(prev => prev + 10)
+    setScore(prev => prev + BONUS_GAMES_CONFIG.snowballs.pointsPerSnowman)
     if (snowmanTimeoutRef.current) {
       clearTimeout(snowmanTimeoutRef.current)
     }
