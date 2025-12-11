@@ -1,0 +1,118 @@
+.blackjack-game {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f5132 0%, #1a5f3f 50%, #0d4a2e 100%);
+  color: #fff;
+  padding: 2rem;
+}
+
+.blackjack-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.blackjack-header h1 {
+  font-size: 2.5rem;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.player-info {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  backdrop-filter: blur(10px);
+}
+
+.player-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #FFD700;
+  margin-bottom: 0.5rem;
+}
+
+.player-balance {
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.player-balance strong {
+  color: #44ff44;
+  font-size: 1.3rem;
+}
+
+.back-button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  background: rgba(255, 68, 68, 0.8);
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.back-button:hover {
+  background: rgba(255, 68, 68, 1);
+  transform: scale(1.05);
+}
+
+.game-mode-selection {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.game-mode-selection h2 {
+  font-size: 2rem;
+  margin-bottom: 2rem;
+}
+
+.mode-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.mode-button {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2rem;
+  border-radius: 1.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.mode-button:hover {
+  transform: translateY(-10px) scale(1.05);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 215, 0, 0.5);
+  box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+}
+
+.mode-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.mode-button h3 {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+  color: #FFD700;
+}
+
+.mode-button p {
+  font-size: 1.1rem;
+  color: #ccc;
+}
+
+@media (max-width: 768px) {
+  .mode-buttons {
+    grid-template-columns: 1fr;
+  }
+}
+

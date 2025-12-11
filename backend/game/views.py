@@ -120,7 +120,28 @@ def get_session_state(request, code):
             status=status.HTTP_404_NOT_FOUND
         )
     serializer = SessionSerializer(session)
-    return Response(serializer.data)
+    session_data = serializer.data
+    
+    # Добавляем список игроков
+    players = session.players.all()
+    players_data = [
+        {
+            'id': str(p.id),
+            'name': p.name,
+            'status': p.status,
+            'current_level': p.current_level,
+            'total_score': p.total_score,
+            'bonus_score': p.bonus_score,
+            'role': p.role,
+            'role_buff': p.role_buff,
+            'final_score': p.final_score,
+            'token': p.token,
+        }
+        for p in players
+    ]
+    session_data['players'] = players_data
+    
+    return Response(session_data)
 
 
 @api_view(['POST'])
@@ -276,7 +297,12 @@ def submit_progress(request):
         )
     
     session = player.session
-    if session.status != 'active':
+    # Для казино (бонусных игр) разрешаем обновление даже если основная игра не активна
+    is_minigame = request.data.get('is_minigame', False)
+    level = request.data.get('level')
+    is_casino = is_minigame or level == 'bonus' or level == 'slots'
+    
+    if not is_casino and session.status != 'active':
         return Response(
             {'error': 'Игра не активна'},
             status=status.HTTP_400_BAD_REQUEST

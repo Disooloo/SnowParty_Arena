@@ -1,0 +1,502 @@
+.slots-game {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: #fff;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.slots-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.slots-header h1 {
+  font-size: 2.5rem;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.player-info {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.player-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #FFD700;
+  margin-bottom: 0.5rem;
+}
+
+.player-balance {
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.player-balance strong {
+  color: #44ff44;
+  font-size: 1.3rem;
+}
+
+.back-button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  background: rgba(255, 68, 68, 0.8);
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.back-button:hover {
+  background: rgba(255, 68, 68, 1);
+  transform: scale(1.05);
+}
+
+.slots-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  flex: 1;
+}
+
+/* SVG Слот-автомат */
+.slots-machine {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2rem;
+  border-radius: 2rem;
+  border: 3px solid rgba(255, 215, 0, 0.3);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.slots-machine-svg {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.3));
+}
+
+.spin-button {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.spin-button:hover {
+  fill: #8B0000;
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.8));
+}
+
+.sparkle {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+}
+
+/* Анимация вращения барабанов */
+.spinning-reel {
+  animation: reelSpin 0.1s linear infinite;
+}
+
+.spinning-symbol {
+  animation: symbolSpin 0.1s linear infinite;
+}
+
+@keyframes reelSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes symbolSpin {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+  }
+}
+
+/* Панель управления */
+.slots-controls {
+  width: 100%;
+  max-width: 600px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2rem;
+  border-radius: 1.5rem;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.bet-section h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #FFD700;
+  text-align: center;
+}
+
+.bet-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bet-input {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.5rem;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(255, 215, 0, 0.5);
+  border-radius: 0.75rem;
+  color: #fff;
+  font-weight: bold;
+}
+
+.bet-input:focus {
+  outline: none;
+  border-color: #FFD700;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.bet-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quick-bet-buttons {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+}
+
+.quick-bet-btn {
+  padding: 1rem;
+  font-size: 1.2rem;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 165, 0, 0.15));
+  border: 2px solid rgba(255, 215, 0, 0.6);
+  border-radius: 0.75rem;
+  color: #FFD700;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 3px rgba(255, 255, 255, 0.1);
+}
+
+.quick-bet-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.3));
+  border-color: #FFD700;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 
+    0 4px 12px rgba(255, 215, 0, 0.4),
+    0 0 20px rgba(255, 215, 0, 0.2),
+    inset 0 1px 5px rgba(255, 255, 255, 0.2);
+}
+
+.quick-bet-btn:active:not(:disabled) {
+  transform: translateY(0) scale(1);
+}
+
+.quick-bet-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  border-color: rgba(255, 215, 0, 0.2);
+}
+
+.spin-section {
+  display: flex;
+  justify-content: center;
+  margin: 2rem 0;
+}
+
+.spin-button-large {
+  padding: 1.8rem 5rem;
+  font-size: 2rem;
+  font-weight: bold;
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
+  border: 4px solid #FFD700;
+  border-radius: 1.5rem;
+  color: #FFD700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 8px 25px rgba(196, 30, 58, 0.6),
+    0 0 30px rgba(255, 215, 0, 0.3),
+    inset 0 2px 10px rgba(255, 255, 255, 0.1);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  position: relative;
+  overflow: hidden;
+}
+
+.spin-button-large::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: rotate(45deg);
+  transition: all 0.5s;
+}
+
+.spin-button-large:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.spin-button-large:hover:not(:disabled) {
+  transform: scale(1.08);
+  box-shadow: 
+    0 12px 35px rgba(196, 30, 58, 0.8),
+    0 0 40px rgba(255, 215, 0, 0.5),
+    inset 0 2px 15px rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #8B0000, #C41E3A);
+  border-color: #FFA500;
+}
+
+.spin-button-large:active:not(:disabled) {
+  transform: scale(1.02);
+}
+
+.spin-button-large:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.spin-button-large.spinning {
+  animation: spinPulse 1s ease-in-out infinite;
+  background: linear-gradient(135deg, #8B0000, #C41E3A);
+}
+
+@keyframes spinPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 5px 20px rgba(196, 30, 58, 0.5);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 8px 30px rgba(196, 30, 58, 0.8);
+  }
+}
+
+.info-section {
+  display: flex;
+  justify-content: space-around;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.info-item span {
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.info-item strong {
+  font-size: 1.3rem;
+  color: #FFD700;
+}
+
+/* Результат игры */
+.game-result {
+  width: 100%;
+  max-width: 600px;
+  padding: 2.5rem;
+  border-radius: 1.5rem;
+  text-align: center;
+  animation: resultAppear 0.5s ease-out;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.game-result.win {
+  background: linear-gradient(135deg, rgba(68, 255, 68, 0.25), rgba(0, 200, 0, 0.25));
+  border: 3px solid #44ff44;
+  box-shadow: 
+    0 0 40px rgba(68, 255, 68, 0.6),
+    0 0 80px rgba(68, 255, 68, 0.3),
+    inset 0 2px 10px rgba(255, 255, 255, 0.1);
+}
+
+.game-result.lose {
+  background: linear-gradient(135deg, rgba(255, 68, 68, 0.25), rgba(200, 0, 0, 0.25));
+  border: 3px solid #ff4444;
+  box-shadow: 
+    0 0 30px rgba(255, 68, 68, 0.5),
+    inset 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.game-result h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.win-amount {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #44ff44;
+  text-shadow: 0 0 20px rgba(68, 255, 68, 0.8);
+  margin: 1rem 0;
+}
+
+.combination {
+  font-size: 3rem;
+  margin-top: 1rem;
+  letter-spacing: 0.5rem;
+}
+
+@keyframes resultAppear {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Таблица выплат */
+.payouts-table {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.payouts-table h4 {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  color: #FFD700;
+  text-align: center;
+}
+
+.payouts-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.payout-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 215, 0, 0.05));
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.payout-item:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 215, 0, 0.08));
+  border-color: rgba(255, 215, 0, 0.5);
+  transform: translateX(5px);
+  box-shadow: 0 4px 10px rgba(255, 215, 0, 0.2);
+}
+
+.payout-combo {
+  font-size: 1.8rem;
+  letter-spacing: 0.3rem;
+  filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
+}
+
+.payout-mult {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #FFD700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+  padding: 0.5rem 1rem;
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+@media (max-width: 768px) {
+  .slots-game {
+    padding: 1rem;
+  }
+
+  .slots-header h1 {
+    font-size: 2rem;
+  }
+
+  .slots-machine {
+    padding: 1rem;
+  }
+
+  .slots-machine-svg {
+    max-width: 100%;
+  }
+
+  .quick-bet-buttons {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .spin-button-large {
+    padding: 1.2rem 3rem;
+    font-size: 1.5rem;
+  }
+
+  .info-section {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .payouts-list {
+    grid-template-columns: 1fr;
+  }
+
+  .combination {
+    font-size: 2rem;
+    letter-spacing: 0.3rem;
+  }
+}

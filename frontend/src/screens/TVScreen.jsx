@@ -690,7 +690,7 @@ function TVScreen() {
       
       <div className="tv-header">
         <h1>🎄 Снежная арена </h1>
-        <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+        <div style={{display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap'}}>
           <div style={{background: 'rgba(0, 0, 0, 0.5)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.9rem'}}>
             Код сессии: <strong style={{color: '#44ff44'}}>{session?.code || 'неизвестен'}</strong>
           </div>
@@ -698,6 +698,56 @@ function TVScreen() {
             <span className={`status-dot ${wsConnected ? 'connected' : 'disconnected'}`}></span>
             <span>{wsConnected ? 'Подключено' : 'Отключено'}</span>
           </div>
+          {/* Временные ссылки на казино */}
+          {session?.code && (
+            <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
+              <a 
+                href={`/kazino?session=${session.code}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  background: 'rgba(255, 215, 0, 0.8)',
+                  color: '#000',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  textDecoration: 'none',
+                  fontWeight: 'bold',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 215, 0, 1)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 215, 0, 0.8)'}
+              >
+                🎰 Казино
+              </a>
+              {players.length > 0 && players.map((player) => (
+                <a
+                  key={player.id}
+                  href={`/kazino?session=${session.code}&name=${encodeURIComponent(player.name)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: 'rgba(68, 255, 68, 0.8)',
+                    color: '#000',
+                    border: 'none',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    textDecoration: 'none',
+                    fontWeight: 'bold',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(68, 255, 68, 1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(68, 255, 68, 0.8)'}
+                >
+                  🎰 {player.name}
+                </a>
+              ))}
+            </div>
+          )}
           <button 
             onClick={handleExitSession}
             style={{

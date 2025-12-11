@@ -107,7 +107,7 @@ function Simon({ onComplete }) {
         setCurrentLevel(currentLevel + 1)
         setIsUserTurn(false)
         setIsShowingSequence(false)
-      }, 1000)
+      }, 1000) 
     }
   }
 
