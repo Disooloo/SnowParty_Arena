@@ -308,3 +308,21 @@ export async function adminCreateRig(token, { session, value, player_id, apply_o
   return response.json()
 }
 
+export async function updatePlayerProgress(playerToken, progressData) {
+  const response = await fetch(`${API_BASE}/player/progress`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      player_token: playerToken,
+      ...progressData
+    }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to update player progress')
+  }
+  return response.json()
+}
+

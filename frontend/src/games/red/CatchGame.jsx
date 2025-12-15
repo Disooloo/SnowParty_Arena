@@ -31,11 +31,26 @@ function CatchGame({ onComplete }) {
   const lastSpawnTimeRef = useRef(0)
 
   useEffect(() => {
-    if (gameStarted && !gameOver && timeLeft > 0) {
+    // Если жизни кончились, завершаем игру немедленно
+    if (gameStarted && !gameOver && lives === 0) {
+      console.log('🚫 Жизни кончились, завершаем игру')
+      finishGame()
+      return
+    }
+  }, [gameStarted, lives, gameOver])
+
+  useEffect(() => {
+    // Если время кончилось, завершаем игру
+    if (gameStarted && !gameOver && timeLeft === 0) {
+      console.log('⏰ Время кончилось, завершаем игру')
+      finishGame()
+      return
+    }
+
+    // Если игра идет, уменьшаем таймер
+    if (gameStarted && !gameOver && timeLeft > 0 && lives > 0) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
       return () => clearTimeout(timer)
-    } else if (gameStarted && (timeLeft === 0 || lives === 0)) {
-      finishGame()
     }
   }, [gameStarted, timeLeft, lives, gameOver])
 
@@ -97,7 +112,11 @@ function CatchGame({ onComplete }) {
       setScore(score + 1) // Счетчик предметов, потом умножаем на pointsPerItem
     } else {
       // Попались на плохой предмет - теряем жизнь
-      setLives(lives - 1)
+      setLives(prev => {
+        const newLives = prev - 1
+        console.log('💔 Жизнь потеряна, осталось:', newLives)
+        return newLives
+      })
     }
     
     // Удаляем предмет
@@ -107,20 +126,22 @@ function CatchGame({ onComplete }) {
   const startGame = () => {
     setGameStarted(true)
     setScore(0)
-    setLives(3)
-    setTimeLeft(60)
+    setLives(RED_LEVEL_CONFIG.game1.lives)
+    setTimeLeft(RED_LEVEL_CONFIG.game1.timeLimit)
     setFallingItems([])
     setGameOver(false)
     lastSpawnTimeRef.current = Date.now()
   }
 
   const finishGame = () => {
+    console.log('🏁 Завершаем игру CatchGame, score:', score, 'lives:', lives)
     setGameOver(true)
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
     }
     // Баллы из настроек за каждое пойманное правильное
     const finalScore = score * RED_LEVEL_CONFIG.game1.pointsPerItem
+    console.log('📊 Финальный счет:', finalScore)
     onComplete(finalScore, 0, {
       items_caught: score,
       lives_remaining: lives,

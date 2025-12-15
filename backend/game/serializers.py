@@ -17,7 +17,8 @@ class PlayerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Player
         fields = ['id', 'name', 'device_uuid', 'token', 'status', 'current_level',
-                  'total_score', 'bonus_score', 'final_score', 'role', 'role_buff', 'created_at']
+                  'total_score', 'bonus_score', 'final_score', 'role', 'role_buff', 'created_at',
+                  'current_green_game', 'current_yellow_game', 'current_red_game', 'played_bonus_games']
 
 
 class ProgressSerializer(serializers.ModelSerializer):

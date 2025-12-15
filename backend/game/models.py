@@ -65,6 +65,11 @@ class Player(models.Model):
     is_connected = models.BooleanField(default=False)
     keys_bought = models.IntegerField(default=0)
     prizes = models.JSONField(default=list, blank=True)
+    # Отслеживание прогресса в уровне
+    current_green_game = models.IntegerField(default=0)  # Текущая игра в зеленом уровне (1-2)
+    current_yellow_game = models.IntegerField(default=0)  # Текущая игра в желтом уровне (1-3)
+    current_red_game = models.IntegerField(default=0)    # Текущая игра в красном уровне (1-3)
+    played_bonus_games = models.JSONField(default=list, blank=True)  # Список пройденных бонусных игр
     
     class Meta:
         ordering = ['-total_score', '-bonus_score', 'created_at']

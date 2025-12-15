@@ -36,7 +36,7 @@ function CatchGifts({ onComplete }) {
   const startGame = () => {
     setGameStarted(true)
     setScore(0)
-    setTimeLeft(15)
+    setTimeLeft(BONUS_GAMES_CONFIG.catchGifts.timeLimit)
     setGifts([])
   }
 
@@ -113,6 +113,11 @@ function CatchGifts({ onComplete }) {
           <button
             key={gift.id}
             onClick={() => handleGiftClick(gift.id)}
+            onTouchStart={(e) => {
+              e.currentTarget.style.transform = 'scale(0.8)'
+              handleGiftClick(gift.id)
+            }}
+            onTouchEnd={(e) => e.currentTarget.style.transform = 'scale(1)'}
             className="gift-button"
             style={{
               position: 'absolute',
@@ -128,11 +133,6 @@ function CatchGifts({ onComplete }) {
             }}
             onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.8)'}
             onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            onTouchStart={(e) => {
-              e.currentTarget.style.transform = 'scale(0.8)'
-              handleGiftClick(gift.id)
-            }}
-            onTouchEnd={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
             {gift.emoji}
           </button>

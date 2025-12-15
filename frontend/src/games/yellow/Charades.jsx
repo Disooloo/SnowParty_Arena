@@ -85,26 +85,21 @@ function Charades({ onComplete }) {
       // Проверяем, есть ли главный эмодзи пазла в выбранных
       if (newSelected.some(s => s.piece === currentPuzzle.emoji)) {
         // Правильно собрано
-        setScore(score + 1)
-        setCompletedPuzzles(completedPuzzles + 1)
-        
-        // Переходим к следующему пазлу
-        setTimeout(() => {
-          if (currentPuzzleIndex < puzzles.length - 1) {
-            const nextIndex = currentPuzzleIndex + 1
-            setCurrentPuzzleIndex(nextIndex)
-            loadPuzzle(nextIndex, puzzles)
-          } else {
-            // Все пазлы собраны
-            finishGame()
-          }
-        }, 1000)
-      } else {
-        // Неправильно - сбрасываем выбор
-        setTimeout(() => {
-          setSelectedPieces([])
-        }, 1000)
+        setScore(prev => prev + 1)
+        setCompletedPuzzles(prev => prev + 1)
       }
+
+      // Всегда переходим к следующему пазлу (независимо от правильности)
+      setTimeout(() => {
+        if (currentPuzzleIndex < puzzles.length - 1) {
+          const nextIndex = currentPuzzleIndex + 1
+          setCurrentPuzzleIndex(nextIndex)
+          loadPuzzle(nextIndex, puzzles)
+        } else {
+          // Все пазлы собраны
+          finishGame()
+        }
+      }, 1000)
     }
   }
 

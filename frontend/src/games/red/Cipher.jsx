@@ -89,11 +89,27 @@ function Cipher({ onComplete }) {
       }, 2000)
     } else {
       // Неправильно
-      setShowResult(true)
-      setTimeout(() => {
-        setShowResult(false)
-        setUserAnswer('')
-      }, 1500)
+      if (attempts >= 2) { // После 3 попыток (0, 1, 2) переходим к следующему слову
+        setShowResult(true)
+        // Переходим к следующей загадке
+        setTimeout(() => {
+          if (cipherIndex < ciphers.length - 1) {
+            const nextIndex = cipherIndex + 1
+            setCipherIndex(nextIndex)
+            loadCipher(nextIndex, ciphers)
+          } else {
+            // Все загадки решены
+            finishGame()
+          }
+        }, 1500)
+      } else {
+        // Еще есть попытки
+        setShowResult(true)
+        setTimeout(() => {
+          setShowResult(false)
+          setUserAnswer('')
+        }, 1500)
+      }
     }
   }
 

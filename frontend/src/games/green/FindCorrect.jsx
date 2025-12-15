@@ -135,8 +135,8 @@ function FindCorrect({ onComplete }) {
     })
     
     // Если выбраны все 3 правильные и нет неправильных - баллы из настроек, иначе 0
-    const roundScore = (correctSelected.length === 3 && wrongSelected.length === 0 && selectedImages.length === 3) 
-      ? GREEN_LEVEL_CONFIG.game2.pointsPerRound 
+    const roundScore = (correctSelected.length === 3 && wrongSelected.length === 0 && selectedImages.length === 3)
+      ? GREEN_LEVEL_CONFIG.game2.pointsPerRound
       : 0
     const newRoundScores = [...roundScores, roundScore]
     setRoundScores(newRoundScores)

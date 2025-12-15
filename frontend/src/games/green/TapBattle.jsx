@@ -27,13 +27,13 @@ function TapBattle({ onComplete }) {
 
   const handleTap = () => {
     if (!gameStarted || timeLeft === 0) return
-    
+
     const newTaps = taps + 1
     setTaps(newTaps)
-    
+
     // Баллы из настроек за каждые 10 тапов
     if (newTaps % 10 === 0) {
-      setScore(score + GREEN_LEVEL_CONFIG.game3.pointsPerTenTaps)
+      setScore(prev => prev + GREEN_LEVEL_CONFIG.game3.pointsPerTenTaps)
     }
   }
 
@@ -71,10 +71,14 @@ function TapBattle({ onComplete }) {
       </div>
 
       <div className="snowman-container">
-        <button 
+        <button
           className="snowman-button"
           onClick={handleTap}
-          onTouchStart={handleTap}
+          onTouchStart={(e) => {
+            e.currentTarget.style.transform = 'scale(0.9)'
+            handleTap()
+          }}
+          onTouchEnd={(e) => e.currentTarget.style.transform = 'scale(1)'}
           style={{
             fontSize: '6rem',
             background: 'transparent',
@@ -93,11 +97,6 @@ function TapBattle({ onComplete }) {
           }}
           onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.9)'}
           onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-          onTouchStart={(e) => {
-            e.currentTarget.style.transform = 'scale(0.9)'
-            handleTap()
-          }}
-          onTouchEnd={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
           ⛄
         </button>

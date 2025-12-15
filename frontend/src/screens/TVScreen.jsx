@@ -724,7 +724,7 @@ function TVScreen() {
               </a>
             </div>
           )}
-          <button 
+          <button
             onClick={handleExitSession}
             style={{
               background: 'rgba(255, 68, 68, 0.8)',

@@ -25,6 +25,7 @@ urlpatterns = [
     path('crash/cashout', views.cashout_crash_bet, name='cashout_crash_bet'),
     path('crash/<str:game_id>/finish', views.finish_crash_game, name='finish_crash_game'),
     path('crash/<str:code>/bets', views.get_crash_bets, name='get_crash_bets'),
+    path('player/progress', views.update_player_progress, name='update_player_progress'),
 ]
 
 

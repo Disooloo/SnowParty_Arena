@@ -1506,3 +1506,40 @@ def broadcast_game_event(session_code, event_kind, payload):
     )
 
 
+@api_view(['POST'])
+def update_player_progress(request):
+    """Обновление прогресса игрока"""
+    try:
+        player_token = request.data.get('player_token')
+        if not player_token:
+            return Response({'error': 'player_token required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        player = get_object_or_404(Player, token=player_token)
+
+        # Обновляем уровень и игры
+        if 'current_level' in request.data:
+            player.current_level = request.data['current_level']
+        if 'current_green_game' in request.data:
+            player.current_green_game = request.data['current_green_game']
+        if 'current_yellow_game' in request.data:
+            player.current_yellow_game = request.data['current_yellow_game']
+        if 'current_red_game' in request.data:
+            player.current_red_game = request.data['current_red_game']
+        if 'played_bonus_games' in request.data:
+            player.played_bonus_games = request.data['played_bonus_games']
+
+        player.save()
+
+        # Отправляем обновления
+        broadcast_players_list(player.session.code)
+        broadcast_leaderboard_update(player.session.code)
+
+        return Response({
+            'success': True,
+            'message': 'Прогресс обновлен'
+        })
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

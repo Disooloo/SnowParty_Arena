@@ -51,7 +51,7 @@ function TrueOrFalse({ onComplete }) {
     const isCorrect = answer === currentQuestion.answer
     
     if (isCorrect) {
-      setScore(score + YELLOW_LEVEL_CONFIG.game1.pointsPerAnswer) // Баллы из настроек
+      setScore(prev => prev + YELLOW_LEVEL_CONFIG.game1.pointsPerAnswer) // Баллы из настроек
     }
     
     setShowResult(true)
@@ -70,9 +70,10 @@ function TrueOrFalse({ onComplete }) {
   }
 
   const finishGame = () => {
+    const correctAnswers = Math.floor(score / YELLOW_LEVEL_CONFIG.game1.pointsPerAnswer)
     onComplete(score, 0, {
       questions_total: questions.length,
-      correct_answers: score / YELLOW_LEVEL_CONFIG.game1.pointsPerAnswer,
+      correct_answers: correctAnswers,
       total_score: score
     })
   }
