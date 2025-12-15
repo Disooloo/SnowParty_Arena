@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { getSessionState } from '../../utils/api'
+import { getPlayerToken, getDeviceUuid } from '../../utils/storage'
 import BlackjackSingle from './BlackjackSingle'
 import BlackjackMultiplayer from './BlackjackMultiplayer'
 import './BlackjackGame.css'
@@ -17,22 +18,57 @@ function BlackjackGame() {
 
   useEffect(() => {
     const loadPlayerData = async () => {
-      if (!sessionCode || !playerName) return
+      if (!sessionCode) {
+        console.warn('⚠️ Нет кода сессии')
+        return
+      }
       
       try {
         const sessionState = await getSessionState(sessionCode)
-        const currentPlayer = sessionState.players.find(p => p.name === playerName)
         
+        // Проверяем наличие players
+        let players = null
+        if (sessionState.players && Array.isArray(sessionState.players)) {
+          players = sessionState.players
+        } else if (sessionState.players_list && Array.isArray(sessionState.players_list)) {
+          players = sessionState.players_list
+        }
+        
+        if (!players || players.length === 0) {
+          console.warn('⚠️ Нет данных об игроках в сессии')
+          return
+        }
+        
+        // Ищем игрока по имени или токену
+        let currentPlayer = null
+        if (playerName) {
+          currentPlayer = players.find(p => p.name === playerName)
+        }
+        
+        // Если не найден по имени, ищем по токену
+        if (!currentPlayer) {
+          const playerToken = getPlayerToken()
+          if (playerToken) {
+            currentPlayer = players.find(p => p.token === playerToken)
+          }
+        }
+        
+        // Если все еще не найден, берем первого
+        if (!currentPlayer && players.length > 0) {
+          currentPlayer = players[0]
+        }
+         
         if (currentPlayer) {
           setPlayer({
             id: currentPlayer.id,
             name: currentPlayer.name,
-            final_score: currentPlayer.final_score || 0
+            final_score: currentPlayer.final_score || 0,
+            token: currentPlayer.token
           })
           setBalance(currentPlayer.final_score || 0)
         }
       } catch (err) {
-        console.error('Ошибка загрузки данных игрока:', err)
+        console.error('❌ Ошибка загрузки данных игрока:', err)
       }
     }
     
@@ -107,4 +143,5 @@ function BlackjackGame() {
 }
 
 export default BlackjackGame
+
 

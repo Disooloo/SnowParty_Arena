@@ -57,6 +57,14 @@ class Player(models.Model):
     role = models.CharField(max_length=50, blank=True, null=True)  # Роль игрока (Администратор, и т.д.)
     role_buff = models.IntegerField(default=0)  # Бонус от роли (баллы)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Дополнительные данные для админки и аналитики
+    ip_address = models.CharField(max_length=45, blank=True, null=True)
+    user_agent = models.TextField(blank=True, null=True)
+    device_type = models.CharField(max_length=50, blank=True, null=True)
+    last_seen = models.DateTimeField(null=True, blank=True)
+    is_connected = models.BooleanField(default=False)
+    keys_bought = models.IntegerField(default=0)
+    prizes = models.JSONField(default=list, blank=True)
     
     class Meta:
         ordering = ['-total_score', '-bonus_score', 'created_at']
@@ -193,4 +201,75 @@ class CrashBet(models.Model):
     
     def __str__(self):
         return f"{self.player.name} - {self.status}"
+
+
+class AdminUser(models.Model):
+    """Простой админ-пользователь для панели управления"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    username = models.CharField(max_length=50, unique=True)
+    password_hash = models.CharField(max_length=128)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.username
+
+
+class AdminToken(models.Model):
+    """Токены для аутентификации в админке"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    admin = models.ForeignKey(AdminUser, on_delete=models.CASCADE, related_name='tokens')
+    token = models.CharField(max_length=128, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"Token for {self.admin.username}"
+
+
+class PointsTransaction(models.Model):
+    """История изменений баланса игрока (начисления/списания)"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='transactions')
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='transactions')
+    amount = models.IntegerField()  # + начисление, - списание
+    reason = models.TextField(blank=True, null=True)
+    is_hidden = models.BooleanField(default=False)  # Не показывать игроку
+    created_at = models.DateTimeField(auto_now_add=True)
+    admin = models.ForeignKey(AdminUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        sign = "+" if self.amount >= 0 else "-"
+        return f"{self.player.name}: {sign}{abs(self.amount)}"
+
+
+class RigOverride(models.Model):
+    """Подкрутка результата (для ближайшей крутки/раунда)"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='rig_overrides')
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, null=True, blank=True, related_name='rig_overrides')
+    value = models.FloatField()  # Какое значение должно выпасть (например, множитель или число)
+    rig_type = models.CharField(max_length=20, default='multiplier', choices=[
+        ('case', 'Кейс (число 1-20)'),
+        ('multiplier', 'Множитель')
+    ])
+    round_number = models.IntegerField(null=True, blank=True)  # Для кейсов - номер раунда открытия
+    apply_once = models.BooleanField(default=True)
+    consumed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    admin = models.ForeignKey(AdminUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='rigs')
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        target = self.player.name if self.player else "any"
+        if self.rig_type == 'case':
+            round_info = f" round #{self.round_number}" if self.round_number else ""
+            return f"Case rig #{self.value}{round_info} for {self.session.code} ({target})"
+        else:
+            return f"Multiplier rig {self.value}x for {self.session.code} ({target})"
 

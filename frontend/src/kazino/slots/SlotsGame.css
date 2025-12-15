@@ -420,20 +420,43 @@
 
 .payouts-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 0.75rem;
 }
 
 .payout-item {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  padding: 1rem;
+  padding: 1rem 0.5rem;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 215, 0, 0.05));
   border-radius: 0.75rem;
   border: 1px solid rgba(255, 215, 0, 0.3);
   transition: all 0.3s ease;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  aspect-ratio: 1;
+  min-height: 100px;
+}
+
+.payout-symbol {
+  font-size: 2rem;
+  filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
+  line-height: 1;
+}
+
+.payout-item-special {
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.payout-special-text {
+  font-size: 0.9rem;
+  color: #FFD700;
+  text-align: center;
+  line-height: 1.2;
+  padding: 0 0.25rem;
 }
 
 .payout-item:hover {
@@ -443,21 +466,17 @@
   box-shadow: 0 4px 10px rgba(255, 215, 0, 0.2);
 }
 
-.payout-combo {
-  font-size: 1.8rem;
-  letter-spacing: 0.3rem;
-  filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
-}
-
 .payout-mult {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: bold;
   color: #FFD700;
   text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.8rem;
   background: rgba(255, 215, 0, 0.1);
   border-radius: 0.5rem;
   border: 1px solid rgba(255, 215, 0, 0.3);
+  white-space: nowrap;
+  margin: 0.5rem 0;
 }
 
 @media (max-width: 768px) {
@@ -492,7 +511,27 @@
   }
 
   .payouts-list {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+
+  .payout-item {
+    padding: 0.75rem 0.25rem;
+    min-height: 90px;
+  }
+
+  .payout-symbol {
+    font-size: 1.6rem;
+  }
+
+  .payout-special-text {
+    font-size: 0.8rem;
+  }
+
+  .payout-mult {
+    font-size: 1.1rem;
+    padding: 0.3rem 0.6rem;
+    margin: 0.3rem 0;
   }
 
   .combination {

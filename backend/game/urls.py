@@ -2,6 +2,14 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # Админка
+    path('admin/login', views.admin_login, name='admin_login'),
+    path('admin/players', views.admin_players, name='admin_players'),
+    path('admin/player/<uuid:player_id>', views.admin_player_detail, name='admin_player_detail'),
+    path('admin/player/<uuid:player_id>/points', views.admin_adjust_points, name='admin_adjust_points'),
+    path('admin/player/<uuid:player_id>/delete', views.admin_delete_player, name='admin_delete_player'),
+    path('admin/rig', views.admin_create_rig, name='admin_create_rig'),
+
     path('selfie/upload', views.upload_selfie, name='upload_selfie'),  # Важно: размещаем ПЕРЕД session для избежания конфликтов
     path('audio/tracks', views.get_audio_tracks, name='get_audio_tracks'),
     path('session', views.create_session, name='create_session'),
@@ -16,6 +24,7 @@ urlpatterns = [
     path('crash/bet', views.place_crash_bet, name='place_crash_bet'),
     path('crash/cashout', views.cashout_crash_bet, name='cashout_crash_bet'),
     path('crash/<str:game_id>/finish', views.finish_crash_game, name='finish_crash_game'),
+    path('crash/<str:code>/bets', views.get_crash_bets, name='get_crash_bets'),
 ]
 
 

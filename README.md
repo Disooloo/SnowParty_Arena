@@ -114,6 +114,10 @@ daphne -b 0.0.0.0 -p 8000 snowparty.asgi:application
 
 # Или через manage.py (для разработки)
 python manage.py runserver 0.0.0.0:8000
+
+# Альтернатива 
+cd backend; .\.venv\Scripts\Activate.ps1; daphne -b 0.0.0.0 -p 8000 snowparty.asgi:application
+
 ```
 
 ### 2. Frontend (React + Vite)

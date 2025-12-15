@@ -217,3 +217,94 @@ export async function finishCrashGame(gameId) {
   return response.json()
 }
 
+export async function getCrashBets(code, token) {
+  const response = await fetch(`${API_BASE}/crash/${code}/bets?token=${token}`)
+  if (!response.ok) {
+    throw new Error(`Failed to get crash bets: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+// Admin API
+export async function adminLogin(username, password) {
+  const response = await fetch(`${API_BASE}/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Admin login failed')
+  }
+  return response.json()
+}
+
+export async function adminGetPlayers(token, { session, active } = {}) {
+  const params = new URLSearchParams()
+  if (session) params.append('session', session)
+  if (active) params.append('active', '1')
+  const response = await fetch(`${API_BASE}/admin/players?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) {
+    throw new Error('Failed to load players')
+  }
+  return response.json()
+}
+
+export async function adminGetPlayer(token, playerId) {
+  const response = await fetch(`${API_BASE}/admin/player/${playerId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) {
+    throw new Error('Failed to load player')
+  }
+  return response.json()
+}
+
+export async function adminAdjustPoints(token, playerId, { delta, reason, hidden }) {
+  const response = await fetch(`${API_BASE}/admin/player/${playerId}/points`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ delta, reason, hidden }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to adjust points')
+  }
+  return response.json()
+}
+
+export async function adminDeletePlayer(token, playerId) {
+  const response = await fetch(`${API_BASE}/admin/player/${playerId}/delete`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to delete player')
+  }
+  return response.json()
+}
+
+export async function adminCreateRig(token, { session, value, player_id, apply_once = true }) {
+  const response = await fetch(`${API_BASE}/admin/rig`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ session, value, player_id, apply_once }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to set rig')
+  }
+  return response.json()
+}
+

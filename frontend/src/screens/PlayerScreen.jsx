@@ -45,9 +45,47 @@ function PlayerScreen() {
   const [error, setError] = useState(null)
   const [wsConnected, setWsConnected] = useState(false)
   const [playersList, setPlayersList] = useState([]) // Список всех игроков
+  const [balanceNotices, setBalanceNotices] = useState([])
   
   const wsRef = useRef(null)
   const deviceUuid = useRef(getDeviceUuid())
+
+  const pushBalanceNotice = (notice) => {
+    const id = `${Date.now()}-${Math.random()}`
+    setBalanceNotices((prev) => [...prev, { id, ...notice }])
+    setTimeout(() => {
+      setBalanceNotices((prev) => prev.filter((n) => n.id !== id))
+    }, 5000)
+  }
+
+  const renderBalanceToasts = () => {
+    if (!balanceNotices.length) return null
+    return (
+      <div style={{position: 'fixed', top: '0.75rem', right: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', zIndex: 3000}}>
+        {balanceNotices.map((n) => {
+          const isGain = (n.amount || 0) >= 0
+          return (
+            <div key={n.id} style={{
+              minWidth: '240px',
+              padding: '0.75rem 1rem',
+              borderRadius: '0.75rem',
+              background: isGain ? 'rgba(34,197,94,0.15)' : 'rgba(248,113,113,0.15)',
+              border: `1px solid ${isGain ? 'rgba(34,197,94,0.5)' : 'rgba(248,113,113,0.5)'}`,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+              color: '#e2e8f0'
+            }}>
+              <div style={{fontWeight: 700, fontSize: '1.05rem', color: isGain ? '#4ade80' : '#f87171'}}>
+                {isGain ? 'Баллы начислены' : 'Баллы списаны'}: {n.amount > 0 ? `+${n.amount}` : n.amount}
+              </div>
+              <div style={{fontSize: '0.9rem', color: '#cbd5e1', marginTop: '0.25rem'}}>
+                {n.reason || 'Причина не указана'}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
 
   // Функция для восстановления сессии
   const restoreSession = async () => {
@@ -332,6 +370,14 @@ function PlayerScreen() {
           } else if (!currentLevel || currentLevel === 'none') {
             setCurrentLevel(newLevel || 'green')
           }
+        }
+        break
+      case 'player.balance_update':
+        if (player && data.payload.player_id === player.id) {
+          pushBalanceNotice({
+            amount: data.payload.amount,
+            reason: data.payload.reason || 'Причина не указана',
+          })
         }
         break
       case 'game.event':
@@ -903,73 +949,84 @@ function PlayerScreen() {
     }
   }
 
+  const toastLayer = renderBalanceToasts()
+
   if (error && !session) {
     return (
-      <div className="player-screen error">
-        <h1>Ошибка</h1>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()}>Обновить страницу</button>
-      </div>
+      <>
+        {toastLayer}
+        <div className="player-screen error">
+          <h1>Ошибка</h1>
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()}>Обновить страницу</button>
+        </div>
+      </>
     )
   }
 
   if (!session) {
     return (
-      <div className="player-screen loading">
-        <h1>Загрузка...</h1>
-        <p>Подключение к серверу...</p>
-        {error && <p className="error-message">Ошибка: {error}</p>}
-      </div>
+      <>
+        {toastLayer}
+        <div className="player-screen loading">
+          <h1>Загрузка...</h1>
+          <p>Подключение к серверу...</p>
+          {error && <p className="error-message">Ошибка: {error}</p>}
+        </div>
+      </>
     )
   }
 
   if (!isJoined) {
     return (
-      <div className="player-screen join-screen">
-        <div style={{position: 'fixed', top: '0.5rem', right: '0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem', zIndex: 1000}}>
-          <div style={{background: 'rgba(0, 0, 0, 0.7)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.85rem', maxWidth: '150px', textAlign: 'right'}}>
-            Код: <strong style={{color: '#44ff44'}}>{session?.code || 'неизвестен'}</strong>
+      <>
+        {toastLayer}
+        <div className="player-screen join-screen">
+          <div style={{position: 'fixed', top: '0.5rem', right: '0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem', zIndex: 1000}}>
+            <div style={{background: 'rgba(0, 0, 0, 0.7)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.85rem', maxWidth: '150px', textAlign: 'right'}}>
+              Код: <strong style={{color: '#44ff44'}}>{session?.code || 'неизвестен'}</strong>
+            </div>
+            <button 
+              onClick={handleExitSession}
+              style={{
+                background: 'rgba(255, 68, 68, 0.8)',
+                color: 'white',
+                border: 'none',
+                padding: '0.4rem 0.8rem',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                fontSize: '0.85rem'
+              }}
+            >
+              Выйти
+            </button>
           </div>
-          <button 
-            onClick={handleExitSession}
-            style={{
-              background: 'rgba(255, 68, 68, 0.8)',
-              color: 'white',
-              border: 'none',
-              padding: '0.4rem 0.8rem',
-              borderRadius: '0.5rem',
-              cursor: 'pointer',
-              fontSize: '0.85rem'
-            }}
-          >
-            Выйти
-          </button>
+          <div style={{paddingTop: '4rem'}}>
+            <h1>🎄 Арена снежных вечеринок</h1>
+          <div className="join-form">
+            <h2>Введите ваше имя</h2>
+            <input
+              type="text"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              placeholder="Ваше имя"
+              maxLength={50}
+              onKeyPress={(e) => e.key === 'Enter' && handleJoin()}
+              autoFocus
+            />
+            <button onClick={handleJoin} disabled={!playerName.trim() || playerName.trim().length < 2}>
+              Войти
+            </button>
+            {playerName.trim().length > 0 && playerName.trim().length < 2 && (
+              <p style={{color: '#ffaa00', fontSize: '0.9rem', marginTop: '0.5rem'}}>
+                Имя должно содержать минимум 2 символа
+              </p>
+            )}
+            <p className="session-info">Сессия: {session?.code || 'неизвестна'}</p>
+          </div>
+          </div>
         </div>
-        <div style={{paddingTop: '4rem'}}>
-          <h1>🎄 Арена снежных вечеринок</h1>
-        <div className="join-form">
-          <h2>Введите ваше имя</h2>
-          <input
-            type="text"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Ваше имя"
-            maxLength={50}
-            onKeyPress={(e) => e.key === 'Enter' && handleJoin()}
-            autoFocus
-          />
-          <button onClick={handleJoin} disabled={!playerName.trim() || playerName.trim().length < 2}>
-            Войти
-          </button>
-          {playerName.trim().length > 0 && playerName.trim().length < 2 && (
-            <p style={{color: '#ffaa00', fontSize: '0.9rem', marginTop: '0.5rem'}}>
-              Имя должно содержать минимум 2 символа
-            </p>
-          )}
-          <p className="session-info">Сессия: {session?.code || 'неизвестна'}</p>
-        </div>
-        </div>
-      </div>
+      </>
     )
   }
 
@@ -979,7 +1036,9 @@ function PlayerScreen() {
     // Отладочный лог
     console.log('Rendering waiting screen - isJoined:', isJoined, 'gameStatus:', gameStatus, 'player:', player?.name)
     return (
-      <div className="player-screen waiting-screen">
+      <>
+        {toastLayer}
+        <div className="player-screen waiting-screen">
         <div style={{position: 'fixed', top: '0.5rem', right: '0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem', zIndex: 1000}}>
           <div style={{background: 'rgba(0, 0, 0, 0.7)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.85rem', maxWidth: '150px', textAlign: 'right'}}>
             Код: <strong style={{color: '#44ff44'}}>{session?.code || 'неизвестен'}</strong>
@@ -1071,16 +1130,20 @@ function PlayerScreen() {
         </div>
         </div>
       </div>
+      </>
     )
   }
 
   if (gameStatus === 'active') {
     if (!player) {
       return (
-        <div className="player-screen loading">
-          <h1>Загрузка данных игрока...</h1>
-          <p>Пожалуйста, подождите</p>
-        </div>
+        <>
+          {toastLayer}
+          <div className="player-screen loading">
+            <h1>Загрузка данных игрока...</h1>
+            <p>Пожалуйста, подождите</p>
+          </div>
+        </>
       )
     }
     
@@ -1122,38 +1185,43 @@ function PlayerScreen() {
         } else {
           // Все уровни пройдены
           return (
-            <div className="player-screen level-start">
-              <div style={{position: 'absolute', top: '1rem', right: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem', zIndex: 1000}}>
-                <div style={{background: 'rgba(0, 0, 0, 0.7)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.85rem', maxWidth: '150px', textAlign: 'right'}}>
-                  Код: <strong style={{color: '#44ff44'}}>{session?.code || 'неизвестен'}</strong>
+            <>
+              {toastLayer}
+              <div className="player-screen level-start">
+                <div style={{position: 'absolute', top: '1rem', right: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem', zIndex: 1000}}>
+                  <div style={{background: 'rgba(0, 0, 0, 0.7)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.85rem', maxWidth: '150px', textAlign: 'right'}}>
+                    Код: <strong style={{color: '#44ff44'}}>{session?.code || 'неизвестен'}</strong>
+                  </div>
+                  <button 
+                    onClick={handleExitSession}
+                    style={{
+                      background: 'rgba(255, 68, 68, 0.8)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '0.4rem 0.8rem',
+                      borderRadius: '0.5rem',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    Выйти
+                  </button>
                 </div>
-                <button 
-                  onClick={handleExitSession}
-                  style={{
-                    background: 'rgba(255, 68, 68, 0.8)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '0.4rem 0.8rem',
-                    borderRadius: '0.5rem',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  Выйти
-                </button>
+                <div style={{paddingTop: '4rem'}}>
+                  <h1>🎉 Поздравляем!</h1>
+                  <p>Вы прошли все уровни!</p>
+                  <p style={{fontSize: '1.1rem', marginTop: '1rem'}}>Игрок: <strong>{player.name}</strong></p>
+                  <p style={{fontSize: '1.2rem', marginTop: '1rem', color: '#44ff44'}}>Ваши очки: <strong>{player.final_score}</strong></p>
+                </div>
               </div>
-              <div style={{paddingTop: '4rem'}}>
-                <h1>🎉 Поздравляем!</h1>
-                <p>Вы прошли все уровни!</p>
-                <p style={{fontSize: '1.1rem', marginTop: '1rem'}}>Игрок: <strong>{player.name}</strong></p>
-                <p style={{fontSize: '1.2rem', marginTop: '1rem', color: '#44ff44'}}>Ваши очки: <strong>{player.final_score}</strong></p>
-              </div>
-            </div>
+            </>
           )
         }
       }
       
       return (
+        <>
+        {toastLayer}
         <div className="player-screen level-start">
           <div style={{position: 'fixed', top: '0.5rem', right: '0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem', zIndex: 1000}}>
             <div style={{background: 'rgba(0, 0, 0, 0.7)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.85rem', maxWidth: '150px', textAlign: 'right'}}>
@@ -1193,11 +1261,14 @@ function PlayerScreen() {
             </button>
           </div>
         </div>
+        </>
       )
     }
 
     // Рендерим компоненты уровней
     return (
+      <>
+      {toastLayer}
       <div className="player-screen game-screen" style={{overflowX: 'hidden', maxWidth: '100%'}}>
         {/* Фейерверк */}
         {showFireworks && (
@@ -1509,32 +1580,39 @@ function PlayerScreen() {
           </>
         )}
       </div>
+      </>
     )
   }
 
   if (gameStatus === 'finished') {
     return (
-      <div className="player-screen finish-screen">
-        <h1>🎉 Игра завершена!</h1>
-        {player ? (
-          <>
-            <p>Ваш финальный счёт: {player.final_score || 0} очков</p>
-            <p>Смотрите результаты на ТВ</p>
-          </>
-        ) : (
-          <p>Загрузка результатов...</p>
-        )}
-      </div>
+      <>
+        {toastLayer}
+        <div className="player-screen finish-screen">
+          <h1>🎉 Игра завершена!</h1>
+          {player ? (
+            <>
+              <p>Ваш финальный счёт: {player.final_score || 0} очков</p>
+              <p>Смотрите результаты на ТВ</p>
+            </>
+          ) : (
+            <p>Загрузка результатов...</p>
+          )}
+        </div>
+      </>
     )
   }
 
   // Fallback - если статус неизвестен
   return (
-    <div className="player-screen loading">
-      <h1>Загрузка...</h1>
-      <p>Статус игры: {gameStatus}</p>
-      {error && <p className="error-message">Ошибка: {error}</p>}
-    </div>
+    <>
+      {toastLayer}
+      <div className="player-screen loading">
+        <h1>Загрузка...</h1>
+        <p>Статус игры: {gameStatus}</p>
+        {error && <p className="error-message">Ошибка: {error}</p>}
+      </div>
+    </>
   )
 }
 

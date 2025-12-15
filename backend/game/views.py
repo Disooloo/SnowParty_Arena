@@ -10,9 +10,22 @@ from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from django.db.models import Q
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .models import Session, Player, Progress, Selfie, CrashGame, CrashBet
+from django.contrib.auth.hashers import check_password, make_password
+from .models import (
+    Session,
+    Player,
+    Progress,
+    Selfie,
+    CrashGame,
+    CrashBet,
+    AdminUser,
+    AdminToken,
+    PointsTransaction,
+    RigOverride,
+)
 from .serializers import SessionSerializer, PlayerSerializer, ProgressSerializer
 
 
@@ -24,6 +37,306 @@ def generate_session_code():
 def generate_player_token():
     """Генерация токена игрока"""
     return secrets.token_urlsafe(32)
+
+
+def get_client_ip(request):
+    """Извлекает IP из заголовков/соединения"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip or ''
+
+
+def detect_device_type(user_agent: str):
+    """Простейшее определение типа устройства по user-agent"""
+    if not user_agent:
+        return ''
+    ua = user_agent.lower()
+    if 'mobile' in ua or 'android' in ua or 'iphone' in ua:
+        return 'mobile'
+    if 'ipad' in ua or 'tablet' in ua:
+        return 'tablet'
+    if 'windows' in ua or 'macintosh' in ua or 'linux' in ua:
+        return 'desktop'
+    return 'unknown'
+
+
+def create_admin_token(admin_user):
+    token = secrets.token_urlsafe(48)
+    expires_at = timezone.now() + timedelta(hours=12)
+    AdminToken.objects.create(admin=admin_user, token=token, expires_at=expires_at)
+    return token, expires_at
+
+
+def get_admin_from_request(request):
+    """Проверка админ-токена в заголовке Authorization: Bearer <token>"""
+    auth_header = request.headers.get('Authorization') or ''
+    if not auth_header.startswith('Bearer '):
+        return None
+    token = auth_header.split(' ', 1)[1].strip()
+    try:
+        admin_token = AdminToken.objects.get(token=token)
+        if admin_token.expires_at < timezone.now():
+            return None
+        return admin_token.admin
+    except AdminToken.DoesNotExist:
+        return None
+
+
+def ensure_default_admin():
+    """Гарантируем наличие дефолтного админа admin/disooloo"""
+    admin, created = AdminUser.objects.get_or_create(
+        username='admin',
+        defaults={
+            'password_hash': make_password('disooloo'),
+            'is_active': True,
+        }
+    )
+    return admin
+
+
+@api_view(['POST'])
+def admin_login(request):
+    """Логин в админку, возвращает bearer-токен"""
+    ensure_default_admin()
+    username = request.data.get('username', '').strip()
+    password = request.data.get('password', '')
+    try:
+        admin_user = AdminUser.objects.get(username=username, is_active=True)
+    except AdminUser.DoesNotExist:
+        return Response({'error': 'Неверные учетные данные'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    if not check_password(password, admin_user.password_hash):
+        return Response({'error': 'Неверные учетные данные'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    token, expires_at = create_admin_token(admin_user)
+    return Response({
+        'token': token,
+        'expires_at': expires_at.isoformat(),
+        'admin': {'username': admin_user.username}
+    })
+
+
+@api_view(['GET'])
+def admin_players(request):
+    """Список игроков для админки (опционально фильтр active и session)"""
+    admin_user = get_admin_from_request(request)
+    if not admin_user:
+        return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    session_code = request.GET.get('session')
+    active_only = request.GET.get('active') in ['1', 'true', 'yes']
+    qs = Player.objects.all().select_related('session')
+    if session_code:
+        qs = qs.filter(session__code=session_code)
+
+    now = timezone.now()
+    if active_only:
+        active_threshold = now - timedelta(minutes=5)
+        qs = qs.filter(Q(is_connected=True) | Q(last_seen__gte=active_threshold))
+
+    players = []
+    for p in qs.order_by('-created_at'):
+        players.append({
+            'id': str(p.id),
+            'name': p.name,
+            'session_code': p.session.code,
+            'total_score': p.total_score,
+            'bonus_score': p.bonus_score,
+            'final_score': p.final_score,
+            'status': p.status,
+            'current_level': p.current_level,
+            'last_seen': p.last_seen.isoformat() if p.last_seen else None,
+            'is_connected': p.is_connected,
+            'ip_address': p.ip_address,
+            'device_type': p.device_type,
+            'keys_bought': p.keys_bought,
+        })
+
+    return Response({'players': players})
+
+
+@api_view(['GET'])
+def admin_player_detail(request, player_id):
+    """Детальная карточка игрока"""
+    admin_user = get_admin_from_request(request)
+    if not admin_user:
+        return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    player = get_object_or_404(Player, id=player_id)
+    transactions = [
+        {
+            'id': str(t.id),
+            'amount': t.amount,
+            'reason': t.reason,
+            'is_hidden': t.is_hidden,
+            'created_at': t.created_at.isoformat(),
+            'admin': t.admin.username if t.admin else None,
+        }
+        for t in player.transactions.all().order_by('-created_at')[:50]
+    ]
+
+    data = {
+        'id': str(player.id),
+        'name': player.name,
+        'session_code': player.session.code,
+        'total_score': player.total_score,
+        'bonus_score': player.bonus_score,
+        'final_score': player.final_score,
+        'status': player.status,
+        'current_level': player.current_level,
+        'ip_address': player.ip_address,
+        'user_agent': player.user_agent,
+        'device_type': player.device_type,
+        'keys_bought': player.keys_bought,
+        'prizes': player.prizes,
+        'last_seen': player.last_seen.isoformat() if player.last_seen else None,
+        'is_connected': player.is_connected,
+        'transactions': transactions,
+    }
+    return Response(data)
+
+
+def _broadcast_balance_change(player, amount, reason, is_hidden=False):
+    """Отправляем уведомление об изменении баланса игроку и в сессию"""
+    if is_hidden:
+        return
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f'session_{player.session.code}',
+        {
+            'type': 'player_balance_update',
+            'payload': {
+                'player_id': str(player.id),
+                'amount': amount,
+                'reason': reason,
+            }
+        }
+    )
+
+
+@api_view(['POST'])
+def admin_adjust_points(request, player_id):
+    """Добавить/забрать баллы у игрока"""
+    admin_user = get_admin_from_request(request)
+    if not admin_user:
+        return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    player = get_object_or_404(Player, id=player_id)
+    try:
+        delta = int(request.data.get('delta', 0))
+    except (TypeError, ValueError):
+        return Response({'error': 'delta must be integer'}, status=status.HTTP_400_BAD_REQUEST)
+
+    reason = request.data.get('reason', '').strip() or None
+    is_hidden = bool(request.data.get('hidden', False))
+
+    player.bonus_score += delta
+    player.last_seen = timezone.now()
+    player.save(update_fields=['bonus_score', 'last_seen'])
+
+    PointsTransaction.objects.create(
+        player=player,
+        session=player.session,
+        amount=delta,
+        reason=reason,
+        is_hidden=is_hidden,
+        admin=admin_user
+    )
+
+    broadcast_player_update(player.session.code, player)
+    broadcast_players_list(player.session.code)
+    broadcast_leaderboard_update(player.session.code)
+    _broadcast_balance_change(player, delta, reason, is_hidden=is_hidden)
+
+    return Response({
+        'success': True,
+        'player': PlayerSerializer(player).data
+    })
+
+
+@api_view(['DELETE'])
+def admin_delete_player(request, player_id):
+    """Удаление игрока"""
+    admin_user = get_admin_from_request(request)
+    if not admin_user:
+        return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    player = get_object_or_404(Player, id=player_id)
+
+    # Сохраняем код сессии для обновления списков
+    session_code = player.session.code
+
+    # Удаляем игрока
+    player.delete()
+
+    # Отправляем обновления в сессию
+    broadcast_players_list(session_code)
+    broadcast_leaderboard_update(session_code)
+
+    return Response({
+        'success': True,
+        'message': f'Игрок {player.name} удалён'
+    })
+
+
+@api_view(['POST'])
+def admin_create_rig(request):
+    """Создание подкрутки (rig) для следующей крутки/раунда"""
+    admin_user = get_admin_from_request(request)
+    if not admin_user:
+        return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    session_code = request.data.get('session')
+    value = request.data.get('value')
+    player_id = request.data.get('player_id')
+    apply_once = request.data.get('apply_once', True)
+    rig_type = request.data.get('rig_type', 'multiplier')  # 'case' или 'multiplier'
+    round_number = request.data.get('round_number')
+
+    if session_code is None or value is None:
+        return Response({'error': 'session и value обязательны'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return Response({'error': 'value должен быть числом'}, status=status.HTTP_400_BAD_REQUEST)
+
+    session = get_object_or_404(Session, code=session_code)
+    player = None
+    if player_id:
+        player = get_object_or_404(Player, id=player_id, session=session)
+
+    # Деактивируем предыдущие неиспользованные подкрутки для тех же условий
+    RigOverride.objects.filter(
+        session=session,
+        consumed=False,
+        player=player,
+        rig_type=rig_type
+    ).update(consumed=True)
+
+    rig = RigOverride.objects.create(
+        session=session,
+        player=player,
+        value=value,
+        rig_type=rig_type,
+        round_number=round_number if rig_type == 'case' else None,
+        apply_once=bool(apply_once),
+        admin=admin_user
+    )
+
+    return Response({
+        'success': True,
+        'rig_id': str(rig.id),
+        'session': session.code,
+        'value': rig.value,
+        'rig_type': rig.rig_type,
+        'round_number': rig.round_number,
+        'player_id': str(player.id) if player else None,
+        'apply_once': rig.apply_once,
+    })
 
 
 def get_player_role_and_buff(name):
@@ -162,6 +475,11 @@ def join_session(request, code):
             {'error': 'device_uuid обязателен'},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+    ip_address = get_client_ip(request)
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    device_type = detect_device_type(user_agent)
+    now = timezone.now()
     
     # Преобразуем device_uuid в UUID объект, если это строка
     try:
@@ -188,6 +506,11 @@ def join_session(request, code):
             if session.status == 'pending':
                 player.status = 'ready'
             # Если сессия активна и игрок уже играл, не меняем его статус
+            player.ip_address = ip_address or player.ip_address
+            player.user_agent = user_agent or player.user_agent
+            player.device_type = device_type or player.device_type
+            player.last_seen = now
+            player.is_connected = True
             player.save()
         except Player.DoesNotExist:
             # Игрок не найден - проверяем, можно ли создать нового
@@ -208,6 +531,11 @@ def join_session(request, code):
                 status='ready',
                 role=role,
                 role_buff=role_buff,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                device_type=device_type,
+                last_seen=now,
+                is_connected=True,
             )
             created = True
     except Exception as e:
@@ -296,6 +624,11 @@ def submit_progress(request):
             status=status.HTTP_401_UNAUTHORIZED
         )
     
+    # Обновляем активность игрока
+    player.last_seen = timezone.now()
+    player.is_connected = True
+    player.save(update_fields=['last_seen', 'is_connected'])
+
     session = player.session
     # Для казино (бонусных игр) разрешаем обновление даже если основная игра не активна
     is_minigame = request.data.get('is_minigame', False)
@@ -663,19 +996,33 @@ def create_crash_game(request, code):
     # Преобразуем хэш в число от 0 до 1
     hash_int = int(hmac_hash[:8], 16)  # Берем первые 8 символов
     hash_float = hash_int / (16 ** 8)  # Нормализуем до 0-1
-    
-    # Генерируем множитель с взвешенным распределением
-    # 60% низкие (1.01-2.5), 25% средние (2.5-5.0), 10% высокие (5.0-10.0), 4% очень высокие (10.0-20.0), 1% экстремальные (20.0-50.0)
-    if hash_float < 0.60:
-        multiplier = round(1.01 + hash_float * (1.49 / 0.6), 2)
-    elif hash_float < 0.85:
-        multiplier = round(2.5 + (hash_float - 0.6) * (2.5 / 0.25), 2)
-    elif hash_float < 0.95:
-        multiplier = round(5.0 + (hash_float - 0.85) * (5.0 / 0.1), 2)
-    elif hash_float < 0.99:
-        multiplier = round(10.0 + (hash_float - 0.95) * (10.0 / 0.04), 2)
+
+    # Проверяем подкрутку (rig) перед расчётом случайного множителя
+    rig = RigOverride.objects.filter(session=session, consumed=False).order_by('-created_at').first()
+    multiplier = None
+    if rig:
+        multiplier = round(float(rig.value), 2)
+        if rig.apply_once:
+            rig.consumed = True
+            rig.save(update_fields=['consumed'])
     else:
-        multiplier = round(20.0 + (hash_float - 0.99) * (30.0 / 0.01), 2)
+        # Генерируем множитель с взвешенным распределением
+        # 70% низкие (1.00-2.0), 20% средние (2.0-4.0), 7% высокие (4.0-8.0), 2.5% очень высокие (8.0-15.0), 0.5% экстремальные (15.0-50.0)
+        if hash_float < 0.70:
+            # 70% вероятность: 1.00 - 2.0
+            multiplier = round(1.00 + (hash_float / 0.70) * 1.0, 2)
+        elif hash_float < 0.90:
+            # 20% вероятность: 2.0 - 4.0
+            multiplier = round(2.0 + ((hash_float - 0.70) / 0.20) * 2.0, 2)
+        elif hash_float < 0.97:
+            # 7% вероятность: 4.0 - 8.0
+            multiplier = round(4.0 + ((hash_float - 0.90) / 0.07) * 4.0, 2)
+        elif hash_float < 0.995:
+            # 2.5% вероятность: 8.0 - 15.0
+            multiplier = round(8.0 + ((hash_float - 0.97) / 0.025) * 7.0, 2)
+        else:
+            # 0.5% вероятность: 15.0 - 50.0
+            multiplier = round(15.0 + ((hash_float - 0.995) / 0.005) * 35.0, 2)
     
     # Ограничиваем максимум 50.0
     multiplier = min(multiplier, 50.0)
@@ -861,6 +1208,65 @@ def place_crash_bet(request):
         )
 
 
+@api_view(['GET'])
+def get_crash_bets(request, code):
+    """Получение истории ставок игрока в игре Краш"""
+    try:
+        session = get_object_or_404(Session, code=code)
+        token = request.GET.get('token')
+        
+        if not token:
+            return Response(
+                {'error': 'Токен игрока обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            player = Player.objects.get(session=session, token=token)
+        except Player.DoesNotExist:
+            return Response(
+                {'error': 'Игрок не найден'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Получаем последние ставки игрока
+        bets = CrashBet.objects.filter(
+            crash_game__session=session,
+            player=player
+        ).order_by('-created_at')[:20]
+        
+        bets_data = []
+        for bet in bets:
+            game = bet.crash_game
+            bets_data.append({
+                'bet_id': str(bet.id),
+                'game_id': str(game.id),
+                'player_name': player.name,
+                'multiplier': bet.multiplier,
+                'bet_amount': bet.bet_amount,
+                'win_amount': bet.win_amount,
+                'status': bet.status,
+                'game_multiplier': game.multiplier if game.ended_at else None,
+                'created_at': bet.created_at.isoformat(),
+                'won': bet.status == 'won',
+                'balance_before': player.final_score - (bet.win_amount if bet.status == 'won' else 0) + bet.bet_amount,
+                'balance_after': player.final_score if bet.status == 'won' else player.final_score - bet.bet_amount,
+            })
+        
+        return Response({
+            'bets': bets_data,
+            'total_bets': len(bets_data)
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 @api_view(['POST'])
 def finish_crash_game(request, game_id):
     """Завершение игры Краш и подсчет выигрышей"""
@@ -999,6 +1405,8 @@ def broadcast_players_list(session_code):
                 'role': p.role,
                 'role_buff': p.role_buff,
                 'final_score': p.final_score,
+                'last_seen': p.last_seen.isoformat() if p.last_seen else None,
+                'is_connected': p.is_connected,
             }
             for p in players
         ]
@@ -1036,6 +1444,8 @@ def broadcast_player_update(session_code, player):
                     'role': player.role,
                     'role_buff': player.role_buff,
                     'final_score': player.final_score,
+                    'last_seen': player.last_seen.isoformat() if player.last_seen else None,
+                    'is_connected': player.is_connected,
                 }
             }
         }

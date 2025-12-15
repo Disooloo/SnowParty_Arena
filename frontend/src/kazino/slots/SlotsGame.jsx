@@ -549,21 +549,11 @@ function SlotsGame() {
             {/* Линия выплат */}
             <line x1="100" y1="365" x2="500" y2="365" stroke="#44ff44" strokeWidth="4" strokeDasharray="10,5" opacity="0.6" />
 
-            {/* Нижняя панель с кнопками */}
+            {/* Нижняя панель (декоративная) */}
             <rect x="100" y="560" width="400" height="150" rx="15" fill="#34495e" stroke="#FFD700" strokeWidth="2" />
-
-            {/* Кнопка SPIN */}
-            <circle 
-              cx="300" 
-              cy="635" 
-              r="50" 
-              fill={isSpinning ? "#8B0000" : "#C41E3A"} 
-              stroke="#FFD700" 
-              strokeWidth="3" 
-              className="spin-button"
-              style={{cursor: isSpinning ? 'not-allowed' : 'pointer'}}
-            />
-            <text x="300" y="645" textAnchor="middle" fill="#FFD700" fontSize="24" fontWeight="bold">SPIN</text>
+            
+            {/* Декоративный текст */}
+            <text x="300" y="635" textAnchor="middle" fill="#FFD700" fontSize="28" fontWeight="bold" opacity="0.6">🎰 УДАЧИ! 🎰</text>
 
             {/* Декоративные элементы */}
             <text x="80" y="100" fontSize="30" fill="#FFD700" opacity="0.7">❄️</text>
@@ -701,32 +691,38 @@ function SlotsGame() {
             <h4>Таблица выплат:</h4>
             <div className="payouts-list">
               <div className="payout-item">
-                <span className="payout-combo">🎁🎁🎁</span>
-                <span className="payout-mult">x10</span>
+                <div className="payout-symbol">🎁</div>
+                <div className="payout-mult">x10</div>
+                <div className="payout-symbol">🎁</div>
               </div>
               <div className="payout-item">
-                <span className="payout-combo">❄️❄️❄️</span>
-                <span className="payout-mult">x8</span>
+                <div className="payout-symbol">❄️</div>
+                <div className="payout-mult">x8</div>
+                <div className="payout-symbol">❄️</div>
               </div>
               <div className="payout-item">
-                <span className="payout-combo">⭐⭐⭐</span>
-                <span className="payout-mult">x6</span>
+                <div className="payout-symbol">⭐</div>
+                <div className="payout-mult">x6</div>
+                <div className="payout-symbol">⭐</div>
               </div>
               <div className="payout-item">
-                <span className="payout-combo">🎄🎄🎄</span>
-                <span className="payout-mult">x5</span>
+                <div className="payout-symbol">🎄</div>
+                <div className="payout-mult">x5</div>
+                <div className="payout-symbol">🎄</div>
               </div>
               <div className="payout-item">
-                <span className="payout-combo">🔔🔔🔔</span>
-                <span className="payout-mult">x4</span>
+                <div className="payout-symbol">🔔</div>
+                <div className="payout-mult">x4</div>
+                <div className="payout-symbol">🔔</div>
               </div>
               <div className="payout-item">
-                <span className="payout-combo">🍬🍬🍬</span>
-                <span className="payout-mult">x3</span>
+                <div className="payout-symbol">🍬</div>
+                <div className="payout-mult">x3</div>
+                <div className="payout-symbol">🍬</div>
               </div>
-              <div className="payout-item">
-                <span className="payout-combo">2 одинаковых</span>
-                <span className="payout-mult">x0.5</span>
+              <div className="payout-item payout-item-special">
+                <div className="payout-special-text">2 одинаковых</div>
+                <div className="payout-mult">x0.5</div>
               </div>
             </div>
           </div>

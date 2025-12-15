@@ -5,6 +5,7 @@ import CrashScreen from './screens/CrashScreen'
 import KazinoIndex from './kazino/index'
 import SlotsGame from './kazino/slots/SlotsGame'
 import BlackjackGame from './kazino/blackjack/BlackjackGame'
+import AdminScreen from './screens/AdminScreen'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
       <Route path="/kazino" element={<KazinoIndex />} />
       <Route path="/kazino/slots" element={<SlotsGame />} />
       <Route path="/kazino/blackjack" element={<BlackjackGame />} />
+      <Route path="/admin" element={<AdminScreen />} />
       <Route path="/" element={<PlayerScreen />} />
     </Routes>
   )

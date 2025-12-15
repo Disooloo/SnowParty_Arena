@@ -3,6 +3,8 @@
   background: linear-gradient(135deg, #0f5132 0%, #1a5f3f 50%, #0d4a2e 100%);
   color: #fff;
   padding: 2rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .blackjack-multiplayer-header {
@@ -10,6 +12,38 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.blackjack-multiplayer-header h1 {
+  font-size: 2.5rem;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.player-info {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1rem 1.5rem;
+  border-radius: 0.75rem;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.player-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #FFD700;
+  margin-bottom: 0.5rem;
+}
+
+.player-balance {
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.player-balance strong {
+  color: #44ff44;
+  font-size: 1.3rem;
 }
 
 .back-button {
@@ -29,40 +63,502 @@
   transform: scale(1.05);
 }
 
+/* Комната ожидания */
 .waiting-room {
-  text-align: center;
-  padding: 3rem;
+  max-width: 800px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2rem;
+  border-radius: 1.5rem;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 215, 0, 0.3);
 }
 
-.waiting-room h3 {
+.waiting-room h2 {
+  text-align: center;
   font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #FFD700;
+}
+
+.info-text {
+  text-align: center;
   margin-bottom: 2rem;
+  color: #aaa;
 }
 
 .players-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1rem;
-  max-width: 400px;
-  margin: 0 auto 2rem;
+  margin-bottom: 2rem;
 }
 
 .player-card {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 1rem;
-  border-radius: 0.75rem;
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  transition: all 0.3s ease;
 }
 
-.player-name {
+.player-card.current-player {
+  border-color: #44ff44;
+  box-shadow: 0 0 20px rgba(68, 255, 68, 0.3);
+}
+
+.player-card.ready {
+  border-color: #FFD700;
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.player-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.player-card .player-name {
+  font-size: 1.3rem;
+  color: #FFD700;
+}
+
+.ready-badge {
+  background: #44ff44;
+  color: #000;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.player-card .player-balance {
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.ready-button {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  background: linear-gradient(135deg, #44ff44, #2ecc71);
+  border: 2px solid #FFD700;
+  border-radius: 0.5rem;
+  color: #000;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.ready-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(68, 255, 68, 0.5);
+}
+
+.ready-info {
+  text-align: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 1rem;
+}
+
+.ready-info p {
   font-size: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.ready-players-list {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.ready-players-list p {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: #FFD700;
+}
+
+.ready-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.ready-name {
+  background: rgba(68, 255, 68, 0.2);
+  color: #44ff44;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #44ff44;
+  font-weight: bold;
+}
+
+.wait-message {
+  margin-top: 1rem;
+  color: #aaa;
+  font-style: italic;
+}
+
+.start-game-button {
+  padding: 1rem 3rem;
+  font-size: 1.5rem;
+  font-weight: bold;
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
+  border: 4px solid #FFD700;
+  border-radius: 1rem;
+  color: #FFD700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.start-game-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+}
+
+/* Игровой стол */
+.blackjack-multiplayer-game {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f5132 0%, #1a5f3f 50%, #0d4a2e 100%);
+  color: #fff;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.game-table-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 2rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2rem;
+  border-radius: 2rem;
+  border: 3px solid rgba(255, 215, 0, 0.3);
+}
+
+.blackjack-table {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.3));
+}
+
+.dealer-area,
+.current-player-area {
+  transition: all 0.3s ease;
+}
+
+.current-player-area circle {
+  transition: all 0.3s ease;
+}
+
+.current-player-area circle[stroke="#44ff44"] {
+  animation: turnPulse 1s ease-in-out infinite;
+}
+
+@keyframes turnPulse {
+  0%, 100% {
+    stroke-width: 4;
+    filter: drop-shadow(0 0 10px rgba(68, 255, 68, 0.5));
+  }
+  50% {
+    stroke-width: 6;
+    filter: drop-shadow(0 0 20px rgba(68, 255, 68, 0.8));
+  }
+}
+
+.other-players g {
+  transition: all 0.3s ease;
+}
+
+.other-players circle[stroke="#44ff44"] {
+  animation: turnPulse 1s ease-in-out infinite;
+}
+
+/* Панель управления */
+.game-controls {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2rem;
+  border-radius: 1.5rem;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.bet-section h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #FFD700;
+  text-align: center;
+}
+
+.quick-bet-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.quick-bet-buttons button {
+  padding: 1rem;
+  font-size: 1.2rem;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 165, 0, 0.15));
+  border: 2px solid rgba(255, 215, 0, 0.6);
+  border-radius: 0.75rem;
+  color: #FFD700;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.quick-bet-buttons button:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.3));
+  transform: translateY(-2px) scale(1.05);
+}
+
+.quick-bet-buttons button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.skip-button {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  background: linear-gradient(135deg, #ffaa00, #ff8800);
+  border: 3px solid #FFD700;
+  border-radius: 0.75rem;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.skip-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 170, 0, 0.5);
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hit-btn,
+.stand-btn {
+  padding: 1.2rem 2.5rem;
+  font-size: 1.3rem;
+  font-weight: bold;
+  border: 3px solid #FFD700;
+  border-radius: 1rem;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.hit-btn {
+  background: linear-gradient(135deg, #44ff44, #2ecc71);
+}
+
+.hit-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(68, 255, 68, 0.6);
+}
+
+.stand-btn {
+  background: linear-gradient(135deg, #ff4444, #c0392b);
+}
+
+.stand-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+}
+
+.skipped-message,
+.wait-turn-message {
+  text-align: center;
+  padding: 2rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 1rem;
+  border: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.skipped-message p,
+.wait-turn-message p {
+  font-size: 1.2rem;
+  margin: 0.5rem 0;
+}
+
+/* Результаты игры */
+.game-results {
+  width: 100%;
+  max-width: 1200px;
+  margin: 2rem auto 0;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2rem;
+  border-radius: 1.5rem;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.game-results h2 {
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 2rem;
+  color: #FFD700;
+}
+
+.results-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.result-card {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.result-card.win {
+  border-color: #44ff44;
+  background: rgba(68, 255, 68, 0.1);
+}
+
+.result-card.lose {
+  border-color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+}
+
+.result-card.push {
+  border-color: #FFD700;
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.result-card.blackjack {
+  border-color: #FFD700;
+  background: rgba(255, 215, 0, 0.2);
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+}
+
+.result-player-name {
+  font-size: 1.3rem;
   font-weight: bold;
   color: #FFD700;
   margin-bottom: 0.5rem;
 }
 
-.player-balance {
-  font-size: 1rem;
-  color: #ccc;
+.result-hand-value {
+  font-size: 1.1rem;
+  color: #fff;
+  margin-bottom: 0.5rem;
 }
 
+.result-status {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.result-status.win {
+  color: #44ff44;
+}
+
+.result-status.lose {
+  color: #ff4444;
+}
+
+.result-status.push {
+  color: #FFD700;
+}
+
+.result-status.blackjack {
+  color: #FFD700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+}
+
+.result-win {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #44ff44;
+}
+
+.new-game-button {
+  width: 100%;
+  padding: 1.2rem 3rem;
+  font-size: 1.3rem;
+  font-weight: bold;
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
+  border: 4px solid #FFD700;
+  border-radius: 1rem;
+  color: #FFD700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.new-game-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .blackjack-multiplayer,
+  .blackjack-multiplayer-game {
+    padding: 1rem;
+  }
+
+  .players-list {
+    grid-template-columns: 1fr;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .hit-btn,
+  .stand-btn {
+    width: 100%;
+  }
+
+  .results-list {
+    grid-template-columns: 1fr;
+  }
+}

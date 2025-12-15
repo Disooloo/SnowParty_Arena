@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom'
-import { getCurrentCrashGame, getCrashHistory, placeCrashBet, finishCrashGame, createCrashGame, getSessionState, joinSession } from '../utils/api'
+import { getCurrentCrashGame, getCrashHistory, placeCrashBet, finishCrashGame, createCrashGame, getSessionState, joinSession, submitProgress, getCrashBets } from '../utils/api'
 import { getPlayerToken, getDeviceUuid } from '../utils/storage'
 import './CrashScreen.css'
 
@@ -8,7 +8,6 @@ function CrashScreen() {
   const [searchParams] = useSearchParams()
   const params = useParams()
   const navigate = useNavigate()
-  // Поддерживаем оба формата: /crash/:session/:name и /crash?session=...&name=...
   const sessionCode = params.session || searchParams.get('session')
   const playerNameParam = params.name ? decodeURIComponent(params.name) : null
   const playerName = playerNameParam || searchParams.get('name')
@@ -24,16 +23,20 @@ function CrashScreen() {
   const [myBet, setMyBet] = useState(null)
   const [gameResult, setGameResult] = useState(null)
   const [isWaiting, setIsWaiting] = useState(true)
-  const [bettingPhase, setBettingPhase] = useState(true) // Фаза размещения ставок (до и после игры)
-  const [gameDuration, setGameDuration] = useState(20) // Длительность игры в секундах
-  const [bettingTimeLeft, setBettingTimeLeft] = useState(10) // Оставшееся время на ставку
-  const [pathPoints, setPathPoints] = useState([]) // Точки пути для линии за дедом морозом
+  const [bettingPhase, setBettingPhase] = useState(true)
+  const [bettingTimeLeft, setBettingTimeLeft] = useState(10)
+  const [pathPoints, setPathPoints] = useState([])
+  const [balance, setBalance] = useState(0)
+  const [winAmount, setWinAmount] = useState(0)
+  const [betHistory, setBetHistory] = useState([])
+  const [betSuccessMessage, setBetSuccessMessage] = useState(null)
+  const [viewBox, setViewBox] = useState({ x: 0, y: 0, width: 100, height: 100 })
   
   const animationRef = useRef(null)
   const gameIntervalRef = useRef(null)
   const bettingTimeoutRef = useRef(null)
   const bettingTimerRef = useRef(null)
-  const finishingRef = useRef(false) // Флаг для предотвращения повторных вызовов finishCurrentGame
+  const finishingRef = useRef(false)
   const playerToken = getPlayerToken()
 
   // Загрузка данных игрока
@@ -42,14 +45,10 @@ function CrashScreen() {
       if (!sessionCode || !playerName) return
       
       try {
-        // Получаем данные сессии, чтобы найти игрока
         const sessionData = await getSessionState(sessionCode)
-        
-        // Ищем игрока по имени в списке игроков
         const foundPlayer = sessionData.players?.find(p => p.name.toLowerCase() === playerName.toLowerCase())
         
         if (foundPlayer) {
-          // Игрок найден в сессии - используем его данные
           setPlayer({
             name: foundPlayer.name,
             final_score: foundPlayer.final_score || 0,
@@ -57,8 +56,8 @@ function CrashScreen() {
             role_buff: foundPlayer.role_buff || 0,
             token: foundPlayer.token || playerToken
           })
+          setBalance(foundPlayer.final_score || 0)
         } else if (playerToken) {
-          // Игрок не найден, но есть токен - используем токен
           setPlayer({
             name: playerName,
             final_score: 0,
@@ -67,7 +66,6 @@ function CrashScreen() {
             token: playerToken
           })
         } else {
-          // Игрок не найден и нет токена - регистрируемся
           try {
             const deviceUuid = getDeviceUuid()
             const playerData = await joinSession(sessionCode, playerName, deviceUuid)
@@ -78,9 +76,9 @@ function CrashScreen() {
               role_buff: playerData.role_buff || 0,
               token: playerData.token
             })
+            setBalance(playerData.final_score || 0)
           } catch (err) {
             console.error('Ошибка регистрации:', err)
-            // Используем имя из URL
             setPlayer({
               name: playerName,
               final_score: 0,
@@ -91,7 +89,6 @@ function CrashScreen() {
         }
       } catch (err) {
         console.error('Ошибка загрузки данных игрока:', err)
-        // Fallback - используем имя из URL
         setPlayer({
           name: playerName,
           final_score: 0,
@@ -104,6 +101,26 @@ function CrashScreen() {
     
     loadPlayerData()
   }, [sessionCode, playerToken, playerName])
+
+  // Загрузка истории ставок
+  useEffect(() => {
+    const loadBetHistory = async () => {
+      if (!sessionCode || !player?.token) return
+      
+      try {
+        const data = await getCrashBets(sessionCode, player.token)
+        setBetHistory(data.bets || [])
+      } catch (err) {
+        console.error('Ошибка загрузки истории ставок:', err)
+      }
+    }
+    
+    if (player?.token) {
+      loadBetHistory()
+      const interval = setInterval(loadBetHistory, 5000)
+      return () => clearInterval(interval)
+    }
+  }, [sessionCode, player?.token])
 
   // Загрузка истории и текущей игры
   useEffect(() => {
@@ -121,14 +138,12 @@ function CrashScreen() {
         if (currentData.is_active && currentData.game_id) {
           setCurrentGame(currentData)
           setIsGameActive(true)
-          setCanBet(false) // Нельзя ставить во время игры
+          setCanBet(false)
           setIsWaiting(false)
           setBettingPhase(false)
           const duration = currentData.duration_seconds || 25
-          setGameDuration(duration)
           startGameAnimation(currentData.multiplier, duration)
         } else {
-          // Нет активной игры - создаем новую
           setIsWaiting(false)
           await createNewGame()
         }
@@ -139,9 +154,7 @@ function CrashScreen() {
     
     loadGameData()
     
-    // Обновляем каждые 3 секунды (реже, чтобы не перегружать)
     const interval = setInterval(() => {
-      // Обновляем только историю, если игра не активна
       if (!isGameActive) {
         getCrashHistory(sessionCode).then(data => {
           setHistory(data.history || [])
@@ -154,29 +167,35 @@ function CrashScreen() {
   }, [sessionCode, isGameActive])
 
   const createNewGame = async () => {
-    // Проверяем, не создается ли уже новая игра
     if (finishingRef.current) {
       console.log('⚠️ Игра еще завершается, ждем...')
       return
     }
     
     try {
-      // Сбрасываем состояние
       setMultiplier(1.00)
       setGameResult(null)
       setMyBet(null)
       setBetMultiplier('')
       setBetAmount(0)
+      setWinAmount(0)
+      setPathPoints([])
+      setViewBox({ x: 0, y: 0, width: 100, height: 100 })
       setIsWaiting(true)
+      // Останавливаем любую анимацию во время фазы ставок
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+        animationRef.current = null
+      }
       
       const newGame = await createCrashGame(sessionCode)
       setCurrentGame(newGame)
       setIsWaiting(false)
-      setBettingPhase(true) // Можно ставить до начала игры
+      setBettingPhase(true)
       setCanBet(true)
       setBettingTimeLeft(10)
       
-      // Даем 10 секунд на ставки перед началом игры
+      // 10 секунд на ставки
       let timeLeft = 10
       const preGameTimer = setInterval(() => {
         timeLeft--
@@ -184,13 +203,13 @@ function CrashScreen() {
         if (timeLeft <= 0) {
           clearInterval(preGameTimer)
           setIsGameActive(true)
-          setCanBet(false) // Во время игры нельзя ставить
+          setCanBet(false)
           setBettingPhase(false)
           const duration = newGame.duration_seconds || 25
-          setGameDuration(duration)
           startGameAnimation(newGame.multiplier, duration)
         }
       }, 1000)
+      bettingTimerRef.current = preGameTimer
     } catch (err) {
       console.error('Ошибка создания игры:', err)
       setIsWaiting(false)
@@ -199,56 +218,69 @@ function CrashScreen() {
 
   const startGameAnimation = (targetMultiplier, durationSeconds) => {
     let currentMultiplier = 1.00
-    const duration = durationSeconds * 1000 // Конвертируем секунды в миллисекунды
+    const duration = durationSeconds * 1000
     const startTime = Date.now()
-    const slowPhaseEnd = 3.0 // До 3x медленная анимация
-    const path = [] // Массив точек для линии
+    const path = []
+    let lastUpdateTime = 0
+    const UPDATE_INTERVAL = 100 // Обновляем линию каждые 100ms для плавности
     
     const animate = () => {
       const elapsed = Date.now() - startTime
       const progress = Math.min(elapsed / duration, 1)
       
-      // Плавное увеличение множителя до финального числа
-      // До 3x - медленная анимация, после 3x - быстрее
-      let easedProgress
-      if (targetMultiplier <= slowPhaseEnd) {
-        // Если финальное число <= 3, используем медленную анимацию
-        easedProgress = 1 - Math.pow(1 - progress, 2)
-      } else {
-        // Если финальное число > 3, до 3x медленно, потом быстрее
-        const slowPhaseProgress = slowPhaseEnd / targetMultiplier
-        if (progress <= slowPhaseProgress) {
-          // Медленная фаза (до 3x)
-          const slowProgress = progress / slowPhaseProgress
-          easedProgress = slowProgress * slowPhaseProgress * 0.6 // Замедляем
-        } else {
-          // Быстрая фаза (после 3x)
-          const fastProgress = (progress - slowPhaseProgress) / (1 - slowPhaseProgress)
-          easedProgress = slowPhaseProgress * 0.6 + fastProgress * (1 - slowPhaseProgress * 0.6)
-        }
-      }
-      
+      // Плавное увеличение с ease-out
+      const easedProgress = 1 - Math.pow(1 - progress, 2)
       currentMultiplier = 1.00 + (targetMultiplier - 1.00) * easedProgress
       setMultiplier(currentMultiplier)
       
-      // Добавляем точку в путь (каждые ~50ms для плавности)
-      if (path.length === 0 || elapsed - (path[path.length - 1]?.time || 0) > 50) {
+      // Добавляем точку в путь и обновляем состояние реже для оптимизации
+      const timeSinceLastUpdate = elapsed - lastUpdateTime
+      if (timeSinceLastUpdate >= UPDATE_INTERVAL || progress >= 1) {
         path.push({
           multiplier: currentMultiplier,
           time: elapsed,
           progress: progress
         })
         setPathPoints([...path])
+        lastUpdateTime = elapsed
+      } else {
+        // Все равно добавляем точку в массив, но не обновляем состояние
+        path.push({
+          multiplier: currentMultiplier,
+          time: elapsed,
+          progress: progress
+        })
+      }
+      
+      // Зум камеры для маленьких коэффициентов
+      if (currentMultiplier <= 2.0) {
+        // Приближаем камеру для коэффициентов до 2.0
+        const zoomFactor = 2.0 / currentMultiplier
+        // Используем правильные координаты, привязанные к сетке
+        const clampedMultiplier = Math.min(currentMultiplier, 10)
+        const centerX = Math.min(clampedMultiplier * 10, 100)
+        const centerY = Math.max(100 - clampedMultiplier * 10, 0)
+        const viewWidth = 100 / zoomFactor
+        const viewHeight = 100 / zoomFactor
+        setViewBox({
+          x: Math.max(0, centerX - viewWidth / 2),
+          y: Math.max(0, centerY - viewHeight / 2),
+          width: viewWidth,
+          height: viewHeight
+        })
+      } else {
+        // Полный обзор для больших коэффициентов
+        setViewBox({ x: 0, y: 0, width: 100, height: 100 })
       }
       
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate)
       } else {
-        // Игра завершена - останавливаем анимацию и завершаем игру
         setMultiplier(targetMultiplier)
         setIsGameActive(false)
+        setViewBox({ x: 0, y: 0, width: 100, height: 100 })
         
-        // Добавляем финальную точку
+        // Финальная точка
         path.push({
           multiplier: targetMultiplier,
           time: duration,
@@ -256,8 +288,6 @@ function CrashScreen() {
         })
         setPathPoints([...path])
         
-        // Не переходим в фазу ставок после завершения - сразу завершаем игру
-        // Вызываем finishCurrentGame только один раз
         if (!finishingRef.current) {
           finishCurrentGame()
         }
@@ -270,14 +300,12 @@ function CrashScreen() {
   const finishCurrentGame = async () => {
     if (!currentGame || !currentGame.game_id) return
     
-    // Предотвращаем повторные вызовы
     if (finishingRef.current) {
       console.log('⚠️ finishCurrentGame уже выполняется, пропускаем')
       return
     }
     finishingRef.current = true
     
-    // Очищаем таймеры ставок и анимации
     if (bettingTimeoutRef.current) {
       clearTimeout(bettingTimeoutRef.current)
     }
@@ -289,12 +317,10 @@ function CrashScreen() {
     }
     
     try {
-      // Проверяем, не завершена ли уже игра
       const currentData = await getCurrentCrashGame(sessionCode)
       if (!currentData.is_active || currentData.game_id !== currentGame.game_id) {
         console.log('⚠️ Игра уже завершена или изменилась, пропускаем')
         finishingRef.current = false
-        // Создаем новую игру
         setTimeout(() => {
           createNewGame()
         }, 3000)
@@ -307,64 +333,77 @@ function CrashScreen() {
       setCanBet(false)
       setIsGameActive(false)
       
-      // Обновляем историю сразу после завершения игры
+      // Обновляем историю
       try {
         const historyData = await getCrashHistory(sessionCode)
         setHistory(historyData.history || [])
-        console.log('📊 История обновлена после завершения игры:', historyData.history)
       } catch (err) {
         console.error('Ошибка загрузки истории:', err)
       }
       
-      // Обновляем данные игрока после завершения игры
+      // Обновляем данные игрока и рассчитываем выигрыш
       try {
         const sessionData = await getSessionState(sessionCode)
         const foundPlayer = sessionData.players?.find(p => p.name.toLowerCase() === playerName.toLowerCase())
         if (foundPlayer) {
-          setPlayer(prev => ({
-            ...prev,
-            final_score: foundPlayer.final_score || 0,
-            role: foundPlayer.role,
-            role_buff: foundPlayer.role_buff || 0
-          }))
+          const oldBalance = balance
+          setBalance(foundPlayer.final_score || 0)
+          
+          // Рассчитываем выигрыш
+          if (myBet && myBet.multiplier && result.multiplier && myBet.multiplier <= result.multiplier) {
+            const win = Math.floor((myBet.bet_amount || 0) * myBet.multiplier)
+            setWinAmount(win)
+            
+            // Показываем сообщение о выигрыше
+            setBetSuccessMessage({
+              multiplier: myBet.multiplier,
+              betAmount: myBet.bet_amount,
+              winAmount: win,
+              message: `Вы выиграли! Ставка: ${myBet.bet_amount} баллов на ${myBet.multiplier}x. Выигрыш: ${win} баллов`
+            })
+            
+            // Обновляем баланс на сервере уже сделано через finishCrashGame
+            // Но можно обновить локально
+          } else if (myBet) {
+            setWinAmount(0)
+            setBetSuccessMessage({
+              multiplier: myBet.multiplier,
+              betAmount: myBet.bet_amount,
+              winAmount: 0,
+              message: `Вы проиграли. Ставка: ${myBet.bet_amount} баллов на ${myBet.multiplier}x`
+            })
+          }
+          
+          // Обновляем историю ставок
+          if (player?.token) {
+            try {
+              const data = await getCrashBets(sessionCode, player.token)
+              setBetHistory(data.bets || [])
+            } catch (err) {
+              console.error('Ошибка обновления истории ставок:', err)
+            }
+          }
         }
       } catch (err) {
         console.error('Ошибка обновления данных игрока:', err)
       }
       
-      // Проверяем, выиграл ли игрок
-      if (myBet && myBet.multiplier && result.multiplier && myBet.multiplier <= result.multiplier) {
-        // Выигрыш - подсвечиваем зеленым
+      // Показываем результат 5 секунд, затем новая игра
+      setTimeout(() => {
+        setGameResult(null)
+        setMyBet(null)
+        setBetMultiplier('')
+        setBetAmount(0)
+        setWinAmount(0)
         setTimeout(() => {
-          setGameResult(null)
-          setMyBet(null)
-          setBetMultiplier('')
-          setBetAmount(0)
-          // Создаем новую игру через 5 секунд (пауза между играми)
-          setTimeout(() => {
-            finishingRef.current = false // Сбрасываем флаг перед созданием новой игры
-            createNewGame()
-          }, 5000)
-        }, 3000)
-      } else {
-        // Проигрыш
-        setTimeout(() => {
-          setGameResult(null)
-          setMyBet(null)
-          setBetMultiplier('')
-          setBetAmount(0)
-          // Создаем новую игру через 5 секунд (пауза между играми)
-          setTimeout(() => {
-            finishingRef.current = false // Сбрасываем флаг перед созданием новой игры
-            createNewGame()
-          }, 5000)
-        }, 3000)
-      }
+          finishingRef.current = false
+          createNewGame()
+        }, 2000)
+      }, 5000)
     } catch (err) {
       console.error('Ошибка завершения игры:', err)
-      finishingRef.current = false // Сбрасываем флаг при ошибке
+      finishingRef.current = false
       setIsGameActive(false)
-      // Пытаемся создать новую игру даже при ошибке (через 5 секунд)
       setTimeout(() => {
         createNewGame()
       }, 5000)
@@ -378,9 +417,13 @@ function CrashScreen() {
       return
     }
     
-    // Можно ставить до начала игры или после завершения (в фазе ставок)
+    if (betAmount <= 0 || betAmount > balance) {
+      alert('Неверная ставка! Проверьте сумму.')
+      return
+    }
+    
     if (!bettingPhase && isGameActive) {
-      alert('Ставки принимаются до начала игры или после её завершения')
+      alert('Ставки принимаются только до начала игры')
       return
     }
     
@@ -397,9 +440,34 @@ function CrashScreen() {
         bet_amount: betAmount,
         status: 'pending'
       })
-      // После размещения ставки можно ставить еще (если не началась игра)
+      
+      // Списываем ставку локально
+      setBalance(prev => prev - betAmount)
+      
+      // Показываем сообщение о успешной ставке
+      setBetSuccessMessage({
+        multiplier: multiplierValue,
+        betAmount: betAmount,
+        message: `Ставка размещена: ${betAmount} баллов на ${multiplierValue}x`
+      })
+      
+      // Скрываем сообщение через 3 секунды
+      setTimeout(() => {
+        setBetSuccessMessage(null)
+      }, 3000)
+      
+      // Обновляем историю ставок
+      if (player?.token) {
+        try {
+          const data = await getCrashBets(sessionCode, player.token)
+          setBetHistory(data.bets || [])
+        } catch (err) {
+          console.error('Ошибка обновления истории ставок:', err)
+        }
+      }
+      
       if (isGameActive) {
-        setCanBet(false) // Если игра уже идет, больше нельзя ставить
+        setCanBet(false)
       }
     } catch (err) {
       alert(`Ошибка размещения ставки: ${err.message}`)
@@ -430,27 +498,15 @@ function CrashScreen() {
 
   const isWinner = gameResult && myBet && myBet.multiplier <= gameResult.multiplier
 
+
   return (
     <div className="crash-screen">
       <div className="crash-header">
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%'}}>
+        <div className="header-top">
           <h1>🎄 Игра Краш</h1>
           <button 
             className="back-button-crash"
             onClick={() => navigate(`/kazino?session=${sessionCode}&name=${encodeURIComponent(playerName)}`)}
-            style={{
-              padding: '0.75rem 1.5rem',
-              fontSize: '1rem',
-              background: 'rgba(255, 68, 68, 0.8)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '0.5rem',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 68, 68, 1)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 68, 68, 0.8)'}
           >
             ← Вернуться
           </button>
@@ -458,25 +514,20 @@ function CrashScreen() {
         {player && (
           <div className="player-info">
             <div className="player-name">{player.name}</div>
-            <div className="player-score">{player.final_score || 0} баллов</div>
-            {player.role && (
-              <div className="player-role">
-                {player.role} (+{player.role_buff} баллов)
-              </div>
-            )}
+            <div className="player-balance">Баланс: <strong>{balance}</strong> баллов</div>
           </div>
         )}
       </div>
 
       <div className="crash-game">
-        {/* История игр - над игрой */}
+        {/* История игр */}
         {history.length > 0 && (
           <div className="crash-history">
             <h3>История игр</h3>
             <div className="history-scroll">
               <div className="history-items">
-                {history.map((game, idx) => (
-                  <span key={idx} className="history-item" title={game.started_at ? new Date(game.started_at).toLocaleTimeString() : ''}>
+                {history.slice(0, 10).map((game, idx) => (
+                  <span key={idx} className="history-item">
                     {game.multiplier.toFixed(2)}x
                   </span>
                 ))}
@@ -485,53 +536,156 @@ function CrashScreen() {
           </div>
         )}
         
-        <div className="crash-graph">
-          {/* Линия пути за дедом морозом */}
-          {pathPoints.length > 1 && (
-            <svg className="crash-path" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <polyline
-                points={pathPoints.map((point, idx) => {
-                  const x = Math.min((point.multiplier - 1) * 10, 90)
-                  const y = 100 - Math.min((point.multiplier - 1) * 5, 80)
-                  return `${x},${y}`
-                }).join(' ')}
-                fill="none"
-                stroke="#4CAF50"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          )}
-          
-          <div className="santa-icon" style={{
-            left: `${Math.min((multiplier - 1) * 10, 90)}%`,
-            bottom: `${Math.min((multiplier - 1) * 5, 80)}%`
-          }}>
-            🎅
+        {/* История выигрышей в правом углу */}
+        {betHistory.length > 0 && (
+          <div className="wins-history-panel">
+            <h3>История выигрышей</h3>
+            <div className="wins-history-table">
+              <div className="wins-history-header">
+                <div className="wins-col-datetime">Дата/Время</div>
+                <div className="wins-col-name">Имя</div>
+                <div className="wins-col-bet">Ставка</div>
+                <div className="wins-col-coef">Коэф. ставки</div>
+                <div className="wins-col-result">Коэф. игры</div>
+                <div className="wins-col-win">Выигрыш</div>
+              </div>
+              <div className="wins-history-scroll">
+                {betHistory.slice(0, 20).map((bet, idx) => {
+                  const betDate = bet.created_at ? new Date(bet.created_at) : null
+                  const dateStr = betDate ? betDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '-'
+                  const timeStr = betDate ? betDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '-'
+                  
+                  return (
+                    <div 
+                      key={bet.bet_id || idx} 
+                      className={`wins-history-row ${bet.won ? 'won' : 'lost'}`}
+                    >
+                      <div className="wins-col-datetime">
+                        <div className="datetime-date">{dateStr}</div>
+                        <div className="datetime-time">{timeStr}</div>
+                      </div>
+                      <div className="wins-col-name">{bet.player_name || player?.name || 'Игрок'}</div>
+                      <div className="wins-col-bet">{bet.bet_amount}</div>
+                      <div className="wins-col-coef">{bet.multiplier}x</div>
+                      <div className="wins-col-result">
+                        {bet.game_multiplier ? `${bet.game_multiplier.toFixed(2)}x` : '-'}
+                      </div>
+                      <div className={`wins-col-win ${bet.won ? 'win' : 'loss'}`}>
+                        {bet.won ? (
+                          <span className="win-amount">+{bet.win_amount - bet.bet_amount}</span>
+                        ) : (
+                          <span className="loss-amount">-{bet.bet_amount}</span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
-          <div className="multiplier-display">
-            {/* Во время фазы ставок показываем 1.00x */}
-            {bettingPhase && !isGameActive ? '1.00x' : `${multiplier.toFixed(2)}x`}
+        )}
+        
+        {/* График с сеткой координат */}
+        <div className="crash-graph-container">
+          <div className="crash-graph">
+            {/* Сетка координат */}
+            <svg className="grid-overlay" viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`} preserveAspectRatio="none">
+              <defs>
+                <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                  <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="0.5"/>
+                </pattern>
+              </defs>
+              <rect width="100" height="100" fill="url(#grid)" />
+              
+              {/* Подписи осей */}
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                <g key={num}>
+                  <text x={num * 10} y="98" fontSize="2" fill="rgba(255, 255, 255, 0.5)" textAnchor="middle">{num}</text>
+                  <text x="2" y={100 - num * 10} fontSize="2" fill="rgba(255, 255, 255, 0.5)" textAnchor="start">{num}</text>
+                </g>
+              ))}
+            </svg>
+
+            {/* Линия пути - оптимизированная версия */}
+            {pathPoints.length > 0 && (
+              <svg className="crash-path" viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`} preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style={{stopColor: '#44ff44', stopOpacity: 1}} />
+                    <stop offset="100%" style={{stopColor: '#ffaa00', stopOpacity: 1}} />
+                  </linearGradient>
+                </defs>
+                <polyline
+                  points={(() => {
+                    // Строим точки из pathPoints, привязанные к координатам сетки (0-10)
+                    // Каждая единица множителя = 10% на графике (0 = 0%, 1 = 10%, 2 = 20%, ..., 10 = 100%)
+                    const points = pathPoints.map((point) => {
+                      // Ограничиваем множитель до 10 для соответствия сетке
+                      const clampedMultiplier = Math.min(point.multiplier, 10)
+                      // x координата: multiplier * 10 (но не больше 100)
+                      const x = Math.min(clampedMultiplier * 10, 100)
+                      // y координата: 100 - multiplier * 10 (но не меньше 0), так как y идет сверху вниз
+                      const y = Math.max(100 - clampedMultiplier * 10, 0)
+                      return `${x},${y}`
+                    })
+                    // Добавляем текущую позицию для плавного продолжения линии
+                    if (isGameActive && multiplier > 1.00) {
+                      const clampedMultiplier = Math.min(multiplier, 10)
+                      const currentX = Math.min(clampedMultiplier * 10, 100)
+                      const currentY = Math.max(100 - clampedMultiplier * 10, 0)
+                      // Добавляем только если это новая точка
+                      const lastPoint = points[points.length - 1]
+                      if (!lastPoint || lastPoint !== `${currentX},${currentY}`) {
+                        points.push(`${currentX},${currentY}`)
+                      }
+                    }
+                    return points.join(' ')
+                  })()}
+                  fill="none"
+                  stroke="url(#pathGradient)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="path-line"
+                  vectorEffect="non-scaling-stroke"
+                  shapeRendering="geometricPrecision"
+                />
+              </svg>
+            )}
+            
+            
+            {/* Отображение множителя - показываем только когда игра активна */}
+            {isGameActive && (
+              <div className="multiplier-display">
+                {multiplier.toFixed(2)}x
+              </div>
+            )}
+            {/* Во время фазы ставок показываем статичный 1.00x */}
+            {bettingPhase && !isGameActive && (
+              <div className="multiplier-display multiplier-static">
+                1.00x
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Сообщение о успешной ставке */}
+        {betSuccessMessage && (
+          <div className={`bet-success-message ${betSuccessMessage.winAmount > 0 ? 'win' : betSuccessMessage.winAmount === 0 && betSuccessMessage.betAmount ? 'placed' : ''}`}>
+            {betSuccessMessage.message}
+          </div>
+        )}
+
+        {/* Статус игры */}
+        {bettingPhase && !isGameActive && !myBet && (
+          <div className="betting-phase">
+            ⏰ Фаза ставок: {bettingTimeLeft} секунд до начала игры
+          </div>
+        )}
 
         {isGameActive && (
           <div className="game-status">
-            Игра идет... Множитель растет
-          </div>
-        )}
-
-        {bettingPhase && !isGameActive && !myBet && (
-          <div className="betting-phase">
-            ⏰ Фаза ставок: у вас есть {bettingTimeLeft} секунд для размещения ставки перед началом игры
-          </div>
-        )}
-
-        {bettingPhase && isGameActive && !myBet && (
-          <div className="betting-phase">
-            ⏰ Фаза ставок: у вас есть {bettingTimeLeft} секунд для размещения ставки после завершения игры
+            🚀 Игра идет... Множитель растет!
           </div>
         )}
 
@@ -541,28 +695,39 @@ function CrashScreen() {
           </div>
         )}
 
+        {/* Панель ставок */}
         {bettingPhase && canBet && !myBet && (
           <div className="bet-section">
-            <h3>
-              {isGameActive ? 'Игра завершена. Сделайте ставку:' : `Сделайте ставку перед началом игры${bettingTimeLeft > 0 ? ` (осталось ${bettingTimeLeft} сек)` : ''}:`}
-            </h3>
+            <h3>Сделайте ставку {bettingTimeLeft > 0 ? `(${bettingTimeLeft} сек)` : ''}</h3>
             <div className="bet-inputs">
-              <input
-                type="number"
-                step="0.01"
-                min="1.01"
-                max="50"
-                placeholder="Множитель (1.01-50)"
-                value={betMultiplier}
-                onChange={(e) => setBetMultiplier(e.target.value)}
-              />
-              <input
-                type="number"
-                min="0"
-                placeholder="Ставка (баллы)"
-                value={betAmount}
-                onChange={(e) => setBetAmount(parseInt(e.target.value) || 0)}
-              />
+              <div className="bet-input-group">
+                <label>Множитель</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="1.01"
+                  max="50"
+                  placeholder="1.01-50"
+                  value={betMultiplier}
+                  onChange={(e) => setBetMultiplier(e.target.value)}
+                />
+              </div>
+              <div className="bet-input-group">
+                <label>Ставка (баллы)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={balance}
+                  placeholder={`Макс: ${balance}`}
+                  value={betAmount}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0
+                    if (value >= 0 && value <= balance) {
+                      setBetAmount(value)
+                    }
+                  }}
+                />
+              </div>
             </div>
             <div className="quick-bets">
               <button onClick={() => handleQuickBet(1.5)}>x1.5</button>
@@ -573,69 +738,50 @@ function CrashScreen() {
             <button 
               className="place-bet-button"
               onClick={() => handleBet(parseFloat(betMultiplier) || 1.5)}
-              disabled={!betMultiplier}
+              disabled={!betMultiplier || betAmount <= 0 || betAmount > balance}
             >
-              Поставить
+              Поставить {betAmount > 0 ? `${betAmount} баллов` : ''}
             </button>
           </div>
         )}
 
+        {/* Моя ставка */}
         {myBet && (
           <div className="my-bet">
             <h3>Ваша ставка:</h3>
             <div className="bet-info">
               Множитель: <strong>{myBet.multiplier}x</strong>
-              {betAmount > 0 && (
-                <> | Ставка: <strong>{betAmount} баллов</strong></>
+              {myBet.bet_amount > 0 && (
+                <> | Ставка: <strong>{myBet.bet_amount} баллов</strong></>
               )}
             </div>
           </div>
         )}
 
+        {/* Результат игры */}
         {gameResult && (
           <div className={`game-result ${isWinner ? 'winner' : myBet ? 'loser' : 'neutral'}`}>
             {!myBet ? (
-              // Если не ставили - просто показываем результат
               <>
                 <h2>🎄 Игра завершена</h2>
-                {gameResult && gameResult.multiplier && (
-                  <p className="result-multiplier">Выпал коэффициент: <strong>{gameResult.multiplier.toFixed(2)}x</strong></p>
-                )}
+                <p className="result-multiplier">Выпал коэффициент: <strong>{gameResult.multiplier?.toFixed(2)}x</strong></p>
                 <p className="result-info">Вы не делали ставку в этом раунде</p>
               </>
             ) : isWinner ? (
-              // Выигрыш
               <>
                 <h2>🎉 Вы выиграли!</h2>
-                {gameResult && gameResult.multiplier && (
-                  <p>Игра упала на {gameResult.multiplier.toFixed(2)}x</p>
-                )}
-                {myBet && myBet.multiplier && (
-                  <>
-                    <p>Ваша ставка: {myBet.multiplier}x ({myBet.bet_amount || 0} баллов)</p>
-                    <p className="win-amount">
-                      Возврат ставки: {myBet.bet_amount || 0} баллов
-                    </p>
-                    <p className="win-amount">
-                      Выигрыш: {Math.floor((myBet.bet_amount || 0) * myBet.multiplier)} баллов
-                    </p>
-                    <p className="win-amount">
-                      Итого получено: {(myBet.bet_amount || 0) + Math.floor((myBet.bet_amount || 0) * myBet.multiplier)} баллов
-                    </p>
-                  </>
-                )}
+                <p>Игра упала на {gameResult.multiplier?.toFixed(2)}x</p>
+                <p>Ваша ставка: {myBet.multiplier}x ({myBet.bet_amount || 0} баллов)</p>
+                <p className="win-amount">
+                  Выигрыш: +{winAmount} баллов
+                </p>
               </>
             ) : (
-              // Проигрыш (только если ставили)
               <>
                 <h2>😔 Вы проиграли</h2>
-                {gameResult && gameResult.multiplier && (
-                  <p>Игра упала на {gameResult.multiplier.toFixed(2)}x</p>
-                )}
-                {myBet && myBet.multiplier && (
-                  <p>Ваша ставка: {myBet.multiplier}x</p>
-                )}
-                <p>Ставка не вернулась</p>
+                <p>Игра упала на {gameResult.multiplier?.toFixed(2)}x</p>
+                <p>Ваша ставка: {myBet.multiplier}x</p>
+                <p>Потеряно: -{myBet.bet_amount || 0} баллов</p>
               </>
             )}
           </div>
@@ -646,4 +792,3 @@ function CrashScreen() {
 }
 
 export default CrashScreen
-

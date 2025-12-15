@@ -722,30 +722,6 @@ function TVScreen() {
               >
                 🎰 Казино
               </a>
-              {players.length > 0 && players.map((player) => (
-                <a
-                  key={player.id}
-                  href={`/kazino?session=${session.code}&name=${encodeURIComponent(player.name)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    background: 'rgba(68, 255, 68, 0.8)',
-                    color: '#000',
-                    border: 'none',
-                    padding: '0.5rem 1rem',
-                    borderRadius: '0.5rem',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    textDecoration: 'none',
-                    fontWeight: 'bold',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(68, 255, 68, 1)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(68, 255, 68, 0.8)'}
-                >
-                  🎰 {player.name}
-                </a>
-              ))}
             </div>
           )}
           <button 
@@ -782,9 +758,9 @@ function TVScreen() {
             height: '100%'
           }}>
             <div className="players-waiting">
-              <h3 style={{fontSize: '1.5rem', marginBottom: '1.5rem', textAlign: 'center'}}>Игроки ({players.length})</h3>
+              <h3 style={{fontSize: '1.5rem', marginBottom: '1.5rem', textAlign: 'center'}}>Игроки ({players.filter(p => p.is_connected).length})</h3>
               <ul style={{listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-                {players.map((player, idx) => (
+                {players.filter(p => p.is_connected).map((player, idx) => (
                   <li key={player.id} style={{
                     padding: '1rem',
                     background: 'rgba(255, 255, 255, 0.15)',
@@ -815,7 +791,7 @@ function TVScreen() {
                 ))}
               </ul>
             </div>
-            {players.length >= session.min_players && (
+            {players.filter(p => p.is_connected).length >= session.min_players && (
               <button className="start-button" onClick={handleStartGame} style={{
                 padding: '1.2rem 2rem',
                 fontSize: '1.3rem',
@@ -1017,7 +993,7 @@ function TVScreen() {
                 gap: '0.5rem',
                 paddingRight: '0.5rem'
               }}>
-                {players.map(player => (
+                {players.filter(p => p.is_connected).map(player => (
                   <div key={player.id} style={{
                     background: 'rgba(255, 255, 255, 0.1)',
                     padding: '0.75rem',

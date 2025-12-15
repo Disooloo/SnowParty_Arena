@@ -70,13 +70,55 @@ class SessionConsumer(AsyncWebsocketConsumer):
         try:
             data = json.loads(text_data)
             message_type = data.get('type')
+            payload = data.get('payload', {})
             
             if message_type == 'ping':
                 await self.send(text_data=json.dumps({'type': 'pong'}))
-            # Другие типы сообщений можно добавить здесь
+            elif message_type == 'blackjack.ready':
+                # Рассылаем сообщение о готовности всем клиентам в группе
+                try:
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            'type': 'blackjack_ready',
+                            'payload': payload
+                        }
+                    )
+                    print(f"Broadcasting blackjack.ready for player {payload.get('player_id')}")
+                except Exception as e:
+                    print(f"Error broadcasting blackjack.ready: {e}")
+            elif message_type == 'blackjack.start':
+                # Рассылаем сообщение о начале игры всем клиентам
+                try:
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            'type': 'blackjack_start',
+                            'payload': payload
+                        }
+                    )
+                    print(f"Broadcasting blackjack.start for session {self.session_code}")
+                except Exception as e:
+                    print(f"Error broadcasting blackjack.start: {e}")
+            elif message_type == 'blackjack.action':
+                # Рассылаем игровое действие всем клиентам
+                try:
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            'type': 'blackjack_action',
+                            'payload': payload
+                        }
+                    )
+                except Exception as e:
+                    print(f"Error broadcasting blackjack.action: {e}")
             
         except json.JSONDecodeError:
             pass
+        except Exception as e:
+            print(f"Error in receive: {e}")
+            import traceback
+            traceback.print_exc()
     
     # Обработчики групповых сообщений (broadcast)
     
@@ -100,6 +142,13 @@ class SessionConsumer(AsyncWebsocketConsumer):
             'type': 'player.update',
             'payload': event['payload']
         }))
+
+    async def player_balance_update(self, event):
+        """Уведомление игрока об изменении баланса"""
+        await self.send(text_data=json.dumps({
+            'type': 'player.balance_update',
+            'payload': event['payload']
+        }))
     
     async def leaderboard_update(self, event):
         """Отправка обновления лидерборда"""
@@ -121,6 +170,33 @@ class SessionConsumer(AsyncWebsocketConsumer):
             'type': 'game.event',
             'payload': {
                 'kind': 'selfie.uploaded',
+                'data': event['payload']
+            }
+        }))
+    
+    async def blackjack_ready(self, event):
+        """Отправка сообщения о готовности игрока к блэкджеку"""
+        await self.send(text_data=json.dumps({
+            'type': 'blackjack.ready',
+            'payload': event['payload']
+        }))
+    
+    async def blackjack_start(self, event):
+        """Отправка сообщения о начале игры в блэкджек"""
+        await self.send(text_data=json.dumps({
+            'type': 'game.event',
+            'payload': {
+                'kind': 'blackjack.start',
+                'data': event['payload']
+            }
+        }))
+    
+    async def blackjack_action(self, event):
+        """Отправка игрового действия в блэкджек"""
+        await self.send(text_data=json.dumps({
+            'type': 'game.event',
+            'payload': {
+                'kind': 'blackjack.action',
                 'data': event['payload']
             }
         }))
